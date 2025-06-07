@@ -39,11 +39,10 @@ def solve_steady(
     # ------------------------------------------------------------------ inner Neumann
     T.faceGrad.constrain((-q_inner / k,), where=mesh.facesLeft)
 
-    # ------------------------------------------------------------------ outer Robin as Dirichlet
-    # For the last *cell* value T_cell_out, the equivalent boundary face value:
-    #     T_face = (k T_cell_out + h Δr/2 T_inf) / (k + h Δr/2)
-    coeff = h * half_dx / (k + h * half_dx)           #  h Δr/2 / (k + h Δr/2)
-    T_face_expr = (1.0 - coeff) * T + coeff * T_inf   # linear in T (implicit)
+    # ---- Outer Robin BC converted to equivalent Dirichlet on faces ----
+    # ghost-cell formula :  T_face = (k·T_cell + h·Δr/2·T_inf) / (k + h·Δr/2)
+    alpha = h * half_dx / (k + h * half_dx)          # scalar  (0 < α < 1)
+    T_face_expr = (1.0 - alpha) * T.faceValue + alpha * T_inf
     T.faceValue.constrain(T_face_expr, where=mesh.facesRight)
 
     # ------------------------------------------------------------------ diffusion eqn
