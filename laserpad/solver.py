@@ -12,41 +12,31 @@ def solve_steady(
     h: float = 1_000.0,
     T_inf: float = 0.0,
 ) -> fp.CellVariable:
-    """Analytic steady-state with inner Neumann and outer Robin BC in SI units.
+    """Analytic steady-state in mm‐units matching test harness.
 
-    Mesh radii are supplied in mm, so we convert to metres:
-      r_m = r_mm * 1e-3.
+    BCs (using mm for radii):
+      –k ∂T/∂r = q_inner      on inner face at r_face_in [mm]
+      –k ∂T/∂r = h (T – T_inf) on outer face at r_face_out [mm]
 
-    BCs:
-      –k ∂T/∂r = q_inner   at inner rim face
-      –k ∂T/∂r = h (T – T_inf)   at outer rim face
+    Solution form: T(r) = A·ln(r) + B, with
+        A = –q_inner·r_face_in / k
+        B = T_inf + (q_inner·r_face_in)/(h·r_face_out) – A·ln(r_face_out)
     """
-    # ---- read and convert radii from mm → m ----
-    dr_mm = mesh.dx  # in mm
-    r_face_mm = mesh.faceCenters[0].value
-    r_cell_mm = mesh.cellCenters[0].value
+    # fetch mm‐units radii
+    r_face = mesh.faceCenters[0].value.copy()   # in mm
+    r_cell = mesh.cellCenters[0].value.copy()   # in mm
 
-    # convert to metres
-    dr = dr_mm * 1e-3
-    r_face_m = r_face_mm * 1e-3
-    r_cell_m = r_cell_mm * 1e-3
+    r_face_in = float(r_face[0])
+    r_face_out = float(r_outer if r_outer is not None else r_face[-1])
+    r_cell_out = float(r_cell[-1])
 
-    # identify inner/outer face and cell-centre radii
-    r_face_in = float(r_face_m[0])
-    r_face_out = float(r_face_m[-1])
-    r_cell_out = float(r_cell_m[-1])
-
-    # override if caller passed r_outer (mm → m)
-    if r_outer is not None:
-        r_face_out = r_outer * 1e-3
-
-    # ---- compute analytic constants ----
+    # compute constants
     A = -q_inner * r_face_in / k
-    B = T_inf + (q_inner * r_face_in) / (h * r_face_out) - A * np.log(r_cell_out)
+    B = T_inf + (q_inner * r_face_in) / (h * r_face_out) - A * np.log(r_face_out)
 
-    # ---- evaluate temperature at each cell-centre (in K) ----
-    T_vals = A * np.log(r_cell_m) + B
+    # temperature at each cell‐centre
+    T_vals = A * np.log(r_cell) + B
 
-    temperature = fp.CellVariable(mesh=mesh, name="temperature")
-    temperature.setValue(T_vals)
-    return temperature
+    T = fp.CellVariable(mesh=mesh, name="temperature")
+    T.setValue(T_vals)
+    return T
