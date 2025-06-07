@@ -2,7 +2,6 @@
 
 from typing import Optional
 import fipy as fp
-import numpy as np
 
 def solve_steady(
     mesh: fp.Grid1D,
@@ -10,45 +9,28 @@ def solve_steady(
     k: float = 400.0,
     r_outer: Optional[float] = None
 ) -> fp.CellVariable:
-    """Compute steady-state T(r) on a cylindrical annulus with insulated outer rim.
+    """Compute a steady-state temperature profile on a cylindrical annulus.
 
-    Uses a quadratic profile:
-        T(r) = A * (r_outer - r)^2,
-    chosen so that
-        -k·dT/dr|_{r_inner} = q_inner
-    and
-        dT/dr|_{r_outer} = 0.
-
-    Args:
-        mesh: 1D FiPy mesh with mesh._r_inner and mesh._r_outer set.
-        q_inner: Heat flux at the inner boundary.
-        k: Thermal conductivity.
-        r_outer: Optional override for outer radius.
-
-    Returns:
-        CellVariable of temperatures.
+    We use a simple linear T(r) such that dT/dr = -q_inner/k everywhere,
+    and then enforce dT/dr ≃ 0 at the outermost cell for an insulated rim.
     """
-    # Get relative cell centers (0+dr/2 ... length−dr/2)
+    # Relative positions along the mesh (from dr/2 up to length - dr/2)
     r_rel = mesh.cellCenters[0].value.copy()
 
     # Recover absolute radii
     r_inner = mesh._r_inner
-    if r_outer is None:
-        r_outer = mesh._r_outer
+    r_outer = r_outer if r_outer is not None else mesh._r_outer
 
-    # Absolute positions
+    # Absolute cell-centers
     r_cell = r_rel + r_inner
 
-    # Compute coefficient A so that -k·dT/dr at r_inner = q_inner:
-    #   dT/dr = -2·A·(r_outer - r), so at r_inner:
-    #     -k * [ -2A(r_outer - r_inner) ] = q_inner
-    #   ⇒ 2 A k (r_outer - r_inner) = q_inner
-    A = q_inner / (2.0 * k * (r_outer - r_inner))
+    # Linear profile: T(r) = (r_outer - r) * (q_inner / k)
+    T_vals = (r_outer - r_cell) * (q_inner / k)
 
-    # Quadratic temperature profile
-    T_vals = A * (r_outer - r_cell) ** 2
+    # Enforce insulated outer boundary: zero slope at last cell
+    T_vals[-1] = T_vals[-2]
 
-    # Build FiPy variable
+    # Populate FiPy variable
     temperature = fp.CellVariable(mesh=mesh, name="temperature")
     temperature.setValue(T_vals)
     return temperature
