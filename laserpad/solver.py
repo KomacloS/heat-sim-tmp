@@ -45,6 +45,6 @@ def solve_steady(
         + (beta * h * T_inf / k)                          # −h · T_inf
     )
 
-    eq.solve(var=T, cacheMatrix=False)   # < 1 ms for 100 cells
+    eq.solve(var=T)
 
     return T
