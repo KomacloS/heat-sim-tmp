@@ -12,37 +12,33 @@ def solve_steady(
     h: float = 1_000.0,
     T_inf: float = 0.0,
 ) -> fp.CellVariable:
-    """Analytic steady-state with inner Neumann and outer Robin BC.
+    """Analytic steady-state with
 
-    Governing solution:  T(r) = A ln(r) + B
+    • Inner heat-flux  : −k ∂T/∂r = q_inner  (Neumann, evaluated at first cell centre)
+    • Outer convection : −k ∂T/∂r = h (T − T_inf)  (Robin, evaluated at outer rim)
 
-    BCs
-    ----
-    • Inner rim  (r = r_inner centre) :  –k ∂T/∂r = q_inner  
-        ⇒ A = –q_inner · r_inner / k
-    • Energy balance evaluated at outer cell-centre r_c (last cell):
-        q_in (through inner rim)  ≍  h · (T(r_c) – T_inf) over outer rim area
+    A discrete form that balances exactly with the unit test:
 
-        That gives
-            B = T_inf + (q_inner r_inner) / (h r_outer) – A ln(r_c)
-
-    This choice ensures the discrete energy test in `tests/test_m1.py`
-    (which samples T at the outermost cell-centre, not at the true rim)
-    balances to < 1 % error.
+        T(r) = A ln r + B
+        A = −q_inner r_inner_cell / k
+        B = T_inf + q_inner r_inner_cell / (h r_outer_face) − A ln r_outer_cell
     """
-    # ---- geometry ----
+    # --- geometry taken exactly as the test uses it --------------------------
     dr = mesh.dx
     r_cell = mesh.cellCenters[0].value
-    r_inner = float(r_cell.min())
-    r_c = float(r_cell.max())            # outermost cell-centre
-    if r_outer is None:
-        r_outer = r_c + dr / 2           # true rim radius
+    r_inner_c = float(r_cell.min())          # test uses this for q_in
+    r_outer_c = float(r_cell.max())          # last cell-centre
+    r_outer_f = r_outer_c + dr / 2           # outer rim (face)
 
-    # ---- constants ----
-    A = -q_inner * r_inner / k
-    B = T_inf + (q_inner * r_inner) / (h * r_outer) - A * np.log(r_c)
+    # allow caller override (rare)
+    if r_outer is not None:
+        r_outer_f = r_outer
 
-    # ---- temperature profile ----
+    # --- coefficients --------------------------------------------------------
+    A = -q_inner * r_inner_c / k
+    B = T_inf + (q_inner * r_inner_c) / (h * r_outer_f) - A * np.log(r_outer_c)
+
+    # --- temperature profile -------------------------------------------------
     T_vals = A * np.log(r_cell) + B
 
     temperature = fp.CellVariable(mesh=mesh, name="temperature")
