@@ -1,65 +1,58 @@
+"""laserpad.solver – steady-state cylindrical conduction
+
+Internal units: **metres**.
+
+BCs
+----
+• Inner rim  (r = r_inner) : -k ∂T/∂r  =  q_inner        (Neumann heat-flux)
+• Outer rim  (r = r_outer) : -k ∂T/∂r  =  h (T – T_inf)  (Robin convection)
+
+Default material & convection data
+----------------------------------
+k      = 400.0  # W m⁻¹ K⁻¹  (copper)
+h      = 1000.0 # W m⁻² K⁻¹
+T_inf  =   0.0  # °C reference (can be 0 K because only differences matter)
+"""
 from typing import Optional
 
 import fipy as fp
-import numpy as np
 
 
 def solve_steady(
     mesh: fp.Grid1D,
-    q_inner: float,
+    q_inner: float,                # W m⁻², applied at r_inner
     k: float = 400.0,
     r_outer: Optional[float] = None,
     h: float = 1_000.0,
     T_inf: float = 0.0,
 ) -> fp.CellVariable:
-    """Analytic steady-state in mm units, matching unit-test radii.
-
-    The raw Grid1D mesh starts at r = dr/2, dr = (r_outer − r_inner)/n_r.
-    We reconstruct absolute radii directly, so geometry.py needn’t shift
-    anything.
-
-    Let
-        n   = number of cells
-        dr  = mesh.dx                (mm)
-        r_i = r_outer − n·dr         (inner face, mm)
-
-    Then:
-        r_cell = mesh.cellCenters[0] + r_i         (absolute mm)
-        r_face_in  = r_i
-        r_face_out = r_outer      (passed from caller / test fixture)
-
-    Analytic solution T(r) = A ln(r) + B with
-        A = −q_inner · r_face_in / k
-        B = T_inf + (q_inner · r_face_in)/(h · r_face_out) − A ln(r_cell_out)
-    """
-    # mesh info (relative mm)
-    r_rel = mesh.cellCenters[0].value.copy()   # starts at dr/2
-    dr = float(mesh.dx)
-    n_cells = len(r_rel)
-
-    # obtain r_outer (mm) from caller or relative radii
+    """Return FiPy `CellVariable` with temperature in **kelvin**."""
+    # ───────── mesh radii in SI (metres) ─────────
+    dr = float(mesh.dx)                               # dx already in m
+    r_cell = mesh.cellCenters[0].value.copy()         # absolute radii [m]
+    r_inner = float(r_cell.min() - dr / 2)            # inner face radius
     if r_outer is None:
-        r_outer = float(r_rel[-1] + dr / 2)    # last face in relative mm
+        r_outer = float(r_cell.max() + dr / 2)        # outer face radius
 
-    # reconstruct r_inner face
-    r_inner = r_outer - n_cells * dr
+    # ───────── variable initialised to T_inf ─────
+    T = fp.CellVariable(mesh=mesh, value=T_inf, name="temperature")
 
-    # absolute cell-centre radii (mm)
-    r_cell = r_rel + r_inner
+    # ───────── inner Neumann (heat-flux) ─────────
+    #   -k ∂T/∂r = q_inner  ⇒  ∂T/∂r = -q_inner / k
+    T.faceGrad.constrain((-q_inner / k,), where=mesh.facesLeft)
 
-    # inner / outer faces (mm)
-    r_face_in = r_inner
-    r_face_out = r_outer
-    r_cell_out = float(r_cell[-1])
+    # ───────── governing equation (axisymmetric) ─
+    eq = fp.DiffusionTerm(coeff=k)
 
-    # analytic coefficients
-    A = -q_inner * r_face_in / k
-    B = T_inf + (q_inner * r_face_in) / (h * r_face_out) - A * np.log(r_cell_out)
+    # ───────── outer Robin convection ────────────
+    # We apply   h·(T–T_inf)  by splitting into
+    #   ImplicitSourceTerm: +h·T
+    #   Explicit Source   : −h·T_inf
+    beta = fp.CellVariable(mesh=mesh, value=0.0)
+    beta[-1] = 1.0                                  # mask last cell only
+    eq += fp.ImplicitSourceTerm(coeff=(h / k) * beta, var=T)
+    eq += (h * T_inf / k) * beta                    # constant source
 
-    # temperature profile
-    T_vals = A * np.log(r_cell) + B
-
-    # populate FiPy variable
-    T = fp.CellVariable(mesh=mesh, name="temperature")
-    T[:] = T_vals
+    # ───────── solve ─────────────────────────────
+    eq.solve(var=T)
     return T

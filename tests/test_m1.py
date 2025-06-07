@@ -44,26 +44,29 @@ def test_monotonic_decrease(mesh_and_temp):
     assert np.all(diffs <= 1e-8), "Temperature is not monotonically decreasing with radius."
 
 
-# tests/test_m1.py (only the energy‐balance test changes)
 def test_energy_balance_flux(mesh_and_temp):
-    import numpy as np
-    mesh, T = mesh_and_temp
-    q_inner = 1e6
-    h = 1e3
-    T_inf = 0.0
-    k = 400.0
+    """Inner heat-flux ≈ outer convective heat-loss (< 1 % mismatch)."""
+    import math
 
-    # Compute flux_in by finite‐difference at first two cells:
+    mesh, temperature = mesh_and_temp
+    T_vals = temperature.value.copy()
+    r_cell = mesh.cellCenters[0].value.copy()
     dr = mesh.dx
-    Tvals = T.value
-    dTdr_in = (Tvals[1] - Tvals[0]) / dr
-    flux_in = -k * dTdr_in
 
-    # Compute flux_out similarly at last two cells:
-    dTdr_out = (Tvals[-1] - Tvals[-2]) / dr
-    # That is dT/dr at r_outer; convection flux = -k dT/dr
-    flux_conv = -k * dTdr_out
+    r_inner = float(r_cell.min() - dr / 2)      # inner face [m]
+    r_outer = float(r_cell.max() + dr / 2)      # outer face [m]
 
-    # It should match h*(T_outer - T_inf)
-    # Assert that |flux_in - flux_conv| is small:
-    assert abs(flux_in - flux_conv) < 0.01 * abs(flux_in)
+    q_inner = 1.0e6         # W m⁻²
+    h = 1_000.0             # W m⁻² K⁻¹
+    T_inf = 0.0
+
+    # total heat in (W)
+    q_in = q_inner * 2 * math.pi * r_inner
+
+    # heat out by convection at outer rim (W)
+    T_outer = T_vals[-1]
+    q_out = h * (T_outer - T_inf) * 2 * math.pi * r_outer
+
+    imbalance = abs(q_in + q_out) / abs(q_in)   # q_in should balance −q_out
+    assert imbalance < 0.01, f"Energy imbalance {imbalance*100:.2f}% > 1 %"
+
