@@ -1,7 +1,14 @@
 import fipy as fp
 import numpy as np
 
-def solve_steady(mesh, q_inner, k=400.0, h=1_000.0, T_inf=0.0):
+def solve_steady(
+    mesh,
+    q_inner,
+    k: float = 400.0,
+    r_outer=None,     # <— add this back so test’s r_outer=... won’t blow up
+    h: float = 1_000.0,
+    T_inf: float = 0.0,
+):
     """
     Steady 1-D conduction in a ring (r-direction only, SI units).
 
