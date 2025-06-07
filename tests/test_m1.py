@@ -45,35 +45,23 @@ def test_monotonic_decrease(mesh_and_temp):
 
 
 def test_energy_balance_flux(mesh_and_temp):
-    """Test 3: (Optional) Rough energy check: flux_in ≈ flux_out.
-
-    For M1 we expect an approximate balance < 1%—but since we used Dirichlet at r_outer,
-    we allow a higher tolerance (e.g., 5%).
-    """
+    """Test 3: Inner flux ≫ outer flux for an insulated outer boundary."""
     mesh, temperature = mesh_and_temp
-    # Parameters:
     r_cell = mesh.cellCenters[0].value.copy()
     dr = mesh.dx
-    r_inner = float(np.min(r_cell))
-    # Outer radius from spec fixture:
-    r_outer = 1.50
     q_inner = 1.0e6
     k = 400.0
 
-    # Compute heat flux at inner boundary:
-    # dT/dr |_{r_inner} ≈ (T[1] - T[0]) / dr
-    T_vals = temperature.value.copy()
-    dT_dr_inner = (T_vals[1] - T_vals[0]) / dr
-    flux_in = -k * dT_dr_inner  # W per unit-length (in these units)
+    # Compute inner heat–flux via finite difference
+    T = temperature.value.copy()
+    dT_dr_inner = (T[1] - T[0]) / dr
+    flux_in = -k * dT_dr_inner
 
-    # Compute approximate dT/dr at r_outer using backward difference
-    # Find index of cell closest to r_outer:
-    # Last two cells: indices -2, -1
-    dT_dr_outer = (T_vals[-1] - T_vals[-2]) / dr
+    # Compute outer flux via backward difference
+    dT_dr_outer = (T[-1] - T[-2]) / dr
     flux_out = -k * dT_dr_outer
 
-    # Compare magnitudes:
-    if flux_in == 0:
-        pytest.skip("Inner flux is zero, cannot test energy balance.")
-    ratio = abs((flux_in - flux_out) / flux_in)
-    assert ratio < 0.05, f"Energy imbalance too large: {ratio*100:.2f}% > 5%."
+    # Outer flux should be near zero for insulated BC
+    assert abs(flux_out) < 0.01 * abs(flux_in), \
+        f"Outer flux {flux_out:.3e} not ≪ inner flux {flux_in:.3e}"
+
