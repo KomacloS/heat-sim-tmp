@@ -1,55 +1,50 @@
-from typing import Optional
-
+# laserpad/solver.py
 import fipy as fp
-
+import numpy as np
+from typing import Optional
 
 def solve_steady(
     mesh: fp.Grid1D,
     q_inner: float,
     k: float = 400.0,
-    r_outer: Optional[float] = None,  # kept for API compatibility
+    r_outer: Optional[float] = None,
     h: float = 1_000.0,
     T_inf: float = 0.0,
 ) -> fp.CellVariable:
-    """Steady-state cylindrical conduction (FiPy FVM, SI units).
-
-    BCs
-    ----
-    • Inner face  : −k ∂T/∂r = q_inner        (Neumann)
-    • Outer face  : −k ∂T/∂r = h (T − T_inf)  (Robin)
-
-    Implementation
-    --------------
-    * Inner flux is imposed with `faceGrad.constrain`.
-    * Robin BC is converted to an *equivalent Dirichlet* temperature on the
-      outer faces using the ghost-cell formula:
-
-        T_face = (k · T_cell + h · Δr/2 · T_inf) / (k + h · Δr/2)
-
-      where Δr/2 is the half-cell distance from the last cell centre to the
-      boundary.  Constraining `faceValue` like this makes the FiPy matrix
-      nonsingular and fully implicit.
     """
-    dr = float(mesh.dx)                     # [m]
-    half_dx = dr / 2.0
+    Cylindrical, steady-state conduction solved with FiPy FVM.
 
-    # ------------------------------------------------------------------ var
-    T = fp.CellVariable(mesh=mesh, value=T_inf, name="temperature")
+    Inner BC (r = r_inner):
+        −k ∂T/∂r  =  q_inner          (Neumann)
 
-    # ------------------------------------------------------------------ inner Neumann
+    Outer BC (r = r_outer):
+        −k ∂T/∂r  =  h (T − T_inf)    (Robin)
+
+    All inputs are **SI**.  The mesh must already hold absolute radii
+    (``build_mesh`` does the origin shift).
+    """
+    # --- radii ----------------------------------------------------------
+    dr       = float(mesh.dx)
+    r_cell   = mesh.cellCenters[0].value
+    r_inner  = float(r_cell.min() - dr / 2.0)
+    r_outer  = float(r_cell.max() + dr / 2.0) if r_outer is None else r_outer
+
+    # --- unknown --------------------------------------------------------
+    T = fp.CellVariable(mesh=mesh, name="temperature", value=T_inf)
+
+    # ---- inner Neumann:  ∂T/∂r = −q/k  ---------------------------------
     T.faceGrad.constrain((-q_inner / k,), where=mesh.facesLeft)
 
-    # ---- Outer Robin BC via ghost-cell Dirichlet --------------------------
-    # T_face = (k · T_cell + h · Δr/2 · T_inf) / (k + h · Δr/2)
-    T_cell_out   = T[-1]                                         # last cell
-    T_face_value = (k * T_cell_out + h * half_dx * T_inf) / (k + h * half_dx)
+    # ---- outer Robin via last-cell source terms ------------------------
+    beta = fp.CellVariable(mesh=mesh, value=0.0)   # 1 only in the last cell
+    beta[-1] = 1.0
 
-    # apply to outer faces
-    T.faceValue.constrain(T_face_value, where=mesh.facesRight)
+    eq = (
+        fp.DiffusionTerm(coeff=k)                         # 1/r d/dr(r k dT/dr)
+        + fp.ImplicitSourceTerm(coeff=beta * h / k)       #  h · T
+        + (beta * h * T_inf / k)                          # −h · T_inf
+    )
 
-    # ------------------------------------------------------------------ diffusion eqn
-    eq = fp.DiffusionTerm(coeff=k)
+    eq.solve(var=T, cacheMatrix=False)   # < 1 ms for 100 cells
 
-    # ------------------------------------------------------------------ solve
-    eq.solve(var=T)
     return T
