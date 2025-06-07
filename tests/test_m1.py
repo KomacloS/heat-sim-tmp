@@ -45,23 +45,29 @@ def test_monotonic_decrease(mesh_and_temp):
 
 
 def test_energy_balance_flux(mesh_and_temp):
-    """Test 3: Inner flux ≫ outer flux for an insulated outer boundary."""
+    """Heat entering inner rim ≈ heat leaving by convection (< 1 % mismatch)."""
+    import math
+
     mesh, temperature = mesh_and_temp
+    T_vals = temperature.value.copy()
     r_cell = mesh.cellCenters[0].value.copy()
     dr = mesh.dx
-    q_inner = 1.0e6
-    k = 400.0
 
-    # Compute inner heat–flux via finite difference
-    T = temperature.value.copy()
-    dT_dr_inner = (T[1] - T[0]) / dr
-    flux_in = -k * dT_dr_inner
+    r_inner = float(r_cell.min())
+    r_outer = float(r_cell.max() + dr / 2)
+    q_inner = 1.0e6          # W m⁻²
+    k = 400.0                # W m⁻¹ K⁻¹
+    h = 1_000.0              # W m⁻² K⁻¹
+    T_inf = 0.0
 
-    # Compute outer flux via backward difference
-    dT_dr_outer = (T[-1] - T[-2]) / dr
-    flux_out = -k * dT_dr_outer
+    # Flux in (cylindrical area 2πr)
+    flux_in_total = q_inner * 2 * math.pi * r_inner
 
-    # Outer flux should be near zero for insulated BC
-    assert abs(flux_out) < 0.01 * abs(flux_in), \
-        f"Outer flux {flux_out:.3e} not ≪ inner flux {flux_in:.3e}"
+    # Outer temperature (last cell — good enough for this resolution)
+    T_outer = T_vals[-1]
+    flux_out_total = -h * (T_outer - T_inf) * 2 * math.pi * r_outer
+
+    imbalance = abs(flux_in_total + flux_out_total) / abs(flux_in_total)
+    assert imbalance < 0.01, f"Energy imbalance {imbalance*100:.2f}% > 1%"
+
 

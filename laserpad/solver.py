@@ -1,7 +1,6 @@
-# laserpad/solver.py
-
+import math
 from typing import Optional
-import numpy as np
+
 import fipy as fp
 
 
@@ -10,42 +9,55 @@ def solve_steady(
     q_inner: float,
     k: float = 400.0,
     r_outer: Optional[float] = None,
+    h: float = 1_000.0,
+    T_inf: float = 0.0,
 ) -> fp.CellVariable:
-    """Steady-state cylindrical conduction with inner heat-flux and insulated outer rim.
+    """Numerical steady-state cylindrical conduction with
 
-    Analytical solution:
-        T(r) = (q_inner * r_inner / k) * ln(r_outer / r)
+    * inner **Neumann** heat-flux  –k ∂T/∂r = q_inner
+    * outer **Robin** convection  –k ∂T/∂r = h (T – T_inf)
 
-    Args:
-        mesh: 1-D FiPy mesh whose cellCenters already contain absolute radii.
-        q_inner: Heat flux [W m⁻²] applied on r = r_inner.
-        k: Thermal conductivity [W m⁻¹ K⁻¹].
-        r_outer: Optional outer radius; if None, taken from mesh.
+    Parameters
+    ----------
+    mesh
+        1-D FiPy mesh whose cell centres already hold absolute radii [m].
+    q_inner
+        Applied heat flux [W m⁻²] at *r_inner*.
+    k
+        Thermal conductivity of copper [W m⁻¹ K⁻¹].
+    r_outer
+        Optional outer radius (defaults to last cell centre + dx/2).
+    h
+        Heat-transfer coefficient at outer rim [W m⁻² K⁻¹].  **Default = 1000**.
+    T_inf
+        Ambient reference temperature at outer rim [K].  **Default = 0**.
 
-    Returns:
-        FiPy CellVariable holding temperature (K) at cell centres.
+    Returns
+    -------
+    fipy.CellVariable
+        Temperature field [K] at cell centres.
     """
-    # Absolute radii of cell centres
-    r_cell = mesh.cellCenters[0].value.copy()
-
-    # Inner / outer radii
-    r_inner = float(np.min(r_cell))
+    # ------------------------------------------------------------------ mesh info
+    dr = mesh.dx
+    r_cell = mesh.cellCenters[0].value
+    r_inner = float(r_cell.min())
     if r_outer is None:
-        r_outer = float(np.max(r_cell))
+        r_outer = float(r_cell.max() + dr / 2)
 
-    # Logarithmic temperature profile
-    coeff = q_inner * r_inner / k
-    T_vals = coeff * np.log(r_outer / r_cell)
+    # ------------------------------------------------------------------ variable
+    T = fp.CellVariable(mesh=mesh, name="temperature", value=T_inf)
 
-    # Build FiPy variable
-    temperature = fp.CellVariable(mesh=mesh, name="temperature")
-    temperature.setValue(T_vals)
-    return temperature
+    # ------------------------------------------------------------------ governing eq
+    eq = fp.DiffusionTerm(coeff=k)  # FiPy in 1-D uses axisymmetric form automatically
 
+    # -------- inner Neumann (heat-flux into domain)
+    eq += (q_inner / k) * mesh.facesLeft
 
+    # -------- outer Robin convection
+    outer = mesh.facesRight
+    eq += fp.ImplicitSourceTerm(coeff=h / k, var=T, where=outer)  # h*(T - T_inf)
+    eq += (h * T_inf / k) * outer                                # adds +h*T_inf
 
-
-
-
-
-
+    # ------------------------------------------------------------------ solve
+    eq.solve(var=T)
+    return T
