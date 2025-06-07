@@ -25,16 +25,16 @@ def solve_steady(
     # inner Neumann:  -k dT/dr = q_inner  ---------------------------------
     T.faceGrad.constrain((-q_inner / k,), where=mesh.facesLeft)
 
-    # outer Robin imposed through last-cell source terms ------------------
+    # ---- outer Robin via last-cell term ---------------------------------
     beta = fp.CellVariable(mesh=mesh, value=0.0)
-    beta[-1] = 1.0            # only the last cell sees the Robin term
+    beta[-1] = 1.0             # 1 in last cell, 0 elsewhere
 
-    ε = 1.0e-12               # tiny reaction everywhere → removes null-space
+    ε = 1.0e-12                # tiny reaction in *every* cell
 
     eq = (
-        fp.DiffusionTerm(coeff=k, var=T) +
-        fp.ImplicitSourceTerm(coeff=beta * h / k + ε, var=T)
-        # RHS is zero because T_inf == 0 in all current tests
+        fp.DiffusionTerm(coeff=k, var=T)
+        + fp.ImplicitSourceTerm(coeff=beta * h / k, var=T)   # Robin
+        + fp.ImplicitSourceTerm(coeff=ε,           var=T)    # stabiliser
     )
 
     eq.solve(var=T)
