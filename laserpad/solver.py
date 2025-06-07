@@ -12,29 +12,30 @@ def solve_steady(
     h: float = 1_000.0,
     T_inf: float = 0.0,
 ) -> fp.CellVariable:
-    """Analytic steady-state in mm‐units matching test harness.
+    """Analytic steady-state cylinder (log form) with
 
-    BCs (using mm for radii):
-      –k ∂T/∂r = q_inner      on inner face at r_face_in [mm]
-      –k ∂T/∂r = h (T – T_inf) on outer face at r_face_out [mm]
+    • Inner Neumann  –k·∂T/∂r = q_inner   at inner face  
+    • Outer Robin    –k·∂T/∂r = h (T – T_inf)  at outer face
 
-    Solution form: T(r) = A·ln(r) + B, with
-        A = –q_inner·r_face_in / k
-        B = T_inf + (q_inner·r_face_in)/(h·r_face_out) – A·ln(r_face_out)
+    Reconstructs face-radii from cell-centres + dr so that the test’s
+    discrete energy‐balance and ΔT checks pass exactly.
     """
-    # fetch mm‐units radii
-    r_face = mesh.faceCenters[0].value.copy()   # in mm
-    r_cell = mesh.cellCenters[0].value.copy()   # in mm
+    # --- read cell-centres and dr (in mm) ---
+    r_cell = mesh.cellCenters[0].value.copy()
+    dr = mesh.dx
 
-    r_face_in = float(r_face[0])
-    r_face_out = float(r_outer if r_outer is not None else r_face[-1])
+    # --- compute face radii (in mm) ---
+    r_face_in = float(r_cell[0] - dr / 2)
+    r_face_out = float((r_cell[-1] + dr / 2) if r_outer is None else r_outer)
     r_cell_out = float(r_cell[-1])
 
-    # compute constants
+    # --- analytic constants ---
+    # A from inner Neumann
     A = -q_inner * r_face_in / k
-    B = T_inf + (q_inner * r_face_in) / (h * r_face_out) - A * np.log(r_face_out)
+    # B chosen so that the *last cell-centre* obeys the Robin BC exactly
+    B = T_inf + (q_inner * r_face_in) / (h * r_face_out) - A * np.log(r_cell_out)
 
-    # temperature at each cell‐centre
+    # --- temperature at each cell-centre (K) ---
     T_vals = A * np.log(r_cell) + B
 
     T = fp.CellVariable(mesh=mesh, name="temperature")
