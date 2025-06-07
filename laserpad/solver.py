@@ -13,24 +13,25 @@ def solve_steady(
     T_inf: float = 0.0,
 ) -> fp.CellVariable:
     """
-    Fast closed-form steady 1-D radial conduction in an annulus:
+    Analytical steady radial conduction:
+    
+      -k dT/dr |r_inner = q_inner
+      -k dT/dr |r_outer = h (T - T_inf)
 
-        -k dT/dr (r_inner) = q_inner
-        -k dT/dr (r_outer) = h (T - T_inf)
-
-    All inputs SI. `build_mesh` must have shifted the mesh into absolute radii.
+    Returns a FiPy CellVariable at the cell-centers.
     """
-    # cell‐center radii and inner/outer faces
+    # 1) build the radii array
     dr      = float(mesh.dx)
     r_cells = mesh.cellCenters[0].value
     r_inner = float(r_cells.min() - dr/2)
     if r_outer is None:
         r_outer = float(r_cells.max() + dr/2)
 
-    # analytic T(r) at each cell center
+    # 2) closed-form T(r)
+    #    T(r) = (q_inner·r_inner/k)*ln(r_outer/r) + (q_inner·r_inner)/(h·r_outer) + T_inf
     T_vals = (q_inner * r_inner / k) * np.log(r_outer / r_cells) \
            + (q_inner * r_inner) / (h * r_outer) \
            + T_inf
 
-    # wrap it back into a FiPy CellVariable so the rest of your API is unchanged
+    # 3) wrap it up in a CellVariable
     return fp.CellVariable(mesh=mesh, name="temperature", value=T_vals)
