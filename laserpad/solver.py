@@ -29,3 +29,4 @@ def solve_steady(
     # Solve
     eq.solve(var=T)
     return T
+    
