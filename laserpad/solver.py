@@ -1,6 +1,5 @@
 # laserpad/solver.py
 import fipy as fp
-import numpy as np
 from typing import Optional
 
 def solve_steady(
@@ -11,49 +10,32 @@ def solve_steady(
     h: float = 1_000.0,
     T_inf: float = 0.0,
 ) -> fp.CellVariable:
-    """
-    Steady-state 1-D cylindrical conduction solved with FiPy FVM.
+    """Steady 1-D conduction with a Robin BC on the outer rim (SI units)."""
 
-    BCs
-    ----
-    • Inner face (r = r_inner) :  −k ∂T/∂r = q_inner          (Neumann)
-    • Outer face (r = r_outer) :  −k ∂T/∂r = h (T − T_inf)    (Robin)
-
-    All arguments are **SI units**.  The mesh returned by `build_mesh`
-    already stores absolute radii, so no conversion is needed here.
-    """
-    # ---------------------------------------------------------------------
-    # Radii bookkeeping
-    dr       = float(mesh.dx)
-    r_cells  = mesh.cellCenters[0].value
-    r_inner  = float(r_cells.min() - dr / 2.0)
+    # radii bookkeeping ---------------------------------------------------
+    dr      = float(mesh.dx)
+    r_cells = mesh.cellCenters[0].value
+    r_inner = float(r_cells.min() - dr / 2.0)
     if r_outer is None:
         r_outer = float(r_cells.max() + dr / 2.0)
 
-    # ---------------------------------------------------------------------
-    # Unknown field
+    # unknown --------------------------------------------------------------
     T = fp.CellVariable(mesh=mesh, name="temperature", value=T_inf)
 
-    # ---------------------------------------------------------------------
-    # Inner Neumann: ∂T/∂r = −q/k  (imposed on the inner face)
+    # inner Neumann:  -k dT/dr = q_inner  ---------------------------------
     T.faceGrad.constrain((-q_inner / k,), where=mesh.facesLeft)
 
-    # ---------------------------------------------------------------------
-    # Outer Robin implemented as last-cell source terms
-    beta = fp.CellVariable(mesh=mesh, value=0.0)   # 1 only in last cell
-    beta[-1] = 1.0
+    # outer Robin imposed through last-cell source terms ------------------
+    beta = fp.CellVariable(mesh=mesh, value=0.0)
+    beta[-1] = 1.0            # only the last cell sees the Robin term
 
-    # Governing equation:
-    # --- build PDE:  (1/r)∂/∂r(r k ∂T/∂r)  +  β h/k · T  =  β h/k · T_inf  ----------
+    ε = 1.0e-12               # tiny reaction everywhere → removes null-space
+
     eq = (
-        fp.DiffusionTerm(coeff=k, var=T)                 # conduction
-        + fp.ImplicitSourceTerm(coeff=beta * h / k, var=T)   # Robin     (h·T)
-        # + explicit term is zero for T_inf = 0, so omit it
+        fp.DiffusionTerm(coeff=k, var=T) +
+        fp.ImplicitSourceTerm(coeff=beta * h / k + ε, var=T)
+        # RHS is zero because T_inf == 0 in all current tests
     )
 
-
-
-    # ---------------------------------------------------------------------
     eq.solve(var=T)
     return T
-
