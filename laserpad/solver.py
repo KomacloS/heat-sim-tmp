@@ -67,7 +67,7 @@ def solve_steady(
     )
 
     # Analytic profile
-    T_vals = (
+    T_vals = (  
         (q_inner * r_inner / k) * np.log(r_outer / r_cells)  # conduction term
         + (q_inner * r_inner) / (h * r_outer)                # convective offset
         + T_inf
