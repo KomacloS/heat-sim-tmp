@@ -46,11 +46,11 @@ def solve_steady(
     # Governing equation:
     #   (1/r) d/dr (r k dT/dr)  +  (h / k) β T  =  (h / k) β T_inf
     eq = (
-        fp.DiffusionTerm(coeff=k, var=T)                  # implicit diffusion
-        + fp.ImplicitSourceTerm(coeff=beta * h / k, var=T)  # implicit h·T
-        + beta * h * T_inf / k                            # explicit RHS
-        + fp.ImplicitSourceTerm(coeff=1e-12, var=T)       # ε·T to anchor matrix
+        fp.DiffusionTerm(coeff=k, var=T)
+        + fp.ImplicitSourceTerm(coeff=beta * h / k, var=T)   #  h·T   (implicit)
+        + fp.ExplicitSourceTerm(coeff=beta * h * T_inf / k, var=T)  # −h·T∞
     )
+
 
     # ---------------------------------------------------------------------
     eq.solve(var=T)
