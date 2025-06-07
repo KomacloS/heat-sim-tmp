@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "laser-pad-thermal"
+version = "0.1.0"
+description = "Selective-laser-soldering pad heat-transfer simulator"
+authors = ["Michael <michael.Kovnator@seica.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{ include = "laserpad" }]
+
+[tool.poetry.dependencies]
+python     = "^3.11"
+numpy      = "^1.26"
+scipy      = "^1.13"
+matplotlib = "^3.9"
+fipy       = "^3.4"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2"
+black  = "^24.4"
+isort  = "^5.13"
+ruff   = "^0.4"
+mypy   = "^1.10"
+
+[tool.poetry.scripts]
+demo-m1 = "demos.demo_m1:main"
+
+[build-system]
+requires = ["poetry-core>=1.9.0"]
+build-backend = "poetry.core.masonry.api"

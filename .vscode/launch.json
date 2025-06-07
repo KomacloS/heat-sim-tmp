@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug pytest",
+      "type": "python",
+      "request": "launch",
+
+      // Launch the pytest CLI via the Poetry venv
+      "program": "${workspaceFolder}/.venv/bin/pytest",
+      "args": [
+        "-q"            // quiet output
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}
