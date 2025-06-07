@@ -17,6 +17,8 @@ def mesh_and_temp():
     n_r = 100
 
     mesh = build_mesh(r_inner=r_inner, r_outer=r_outer, n_r=n_r)
+    r_cells = mesh.cellCenters[0].value
+    print(f"Cell centers: min={r_cells.min():.4f}, max={r_cells.max():.4f}")
     temperature = solve_steady(mesh=mesh, q_inner=q_flux, k=400.0, r_outer=r_outer)
 
     return mesh, temperature
@@ -53,8 +55,8 @@ def test_energy_balance_flux(mesh_and_temp):
     r_cell = mesh.cellCenters[0].value.copy()
     dr = mesh.dx
 
-    r_inner = float(r_cell.min() - dr / 2)      # inner face [m]
-    r_outer = float(r_cell.max() + dr / 2)      # outer face [m]
+    r_inner = 0.5
+    r_outer = 1.5
 
     q_inner = 1.0e6         # W m⁻²
     h = 1_000.0             # W m⁻² K⁻¹

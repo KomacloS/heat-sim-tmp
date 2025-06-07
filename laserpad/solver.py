@@ -1,49 +1,80 @@
-import fipy as fp
+# laserpad/solver.py
+"""
+Analytic steady-state temperature in a 1-D copper ring.
+
+We solve
+    (1/r) d/dr ( r k dT/dr ) = 0                on  r_inner ≤ r ≤ r_outer
+with
+    –k (dT/dr)|_r=r_inner = q_inner              (prescribed inward heat-flux)
+    –k (dT/dr)|_r=r_outer = h [T – T_inf]        (convective cooling)
+and constant k, h.
+
+The solution is
+
+    T(r) = (q_inner r_inner / k) ln(r_outer / r)
+           + (q_inner r_inner) / (h r_outer)
+           + T_inf.
+"""
+
+from __future__ import annotations
+
 import numpy as np
+import fipy as fp
+
 
 def solve_steady(
     mesh: fp.Grid1D,
     q_inner: float,
+    *,
     k: float = 400.0,
-    r_outer: float = None,
+    r_outer: float | None = None,
     h: float = 1_000.0,
     T_inf: float = 0.0,
-    r_inner: float = None,   # <-- allow explicit r_inner
-):
-    # Use the provided r_inner and r_outer, or infer from mesh (with warning!)
-    if r_inner is None:
-        r_cells = mesh.cellCenters[0].value
-        print(f"Cell centers: min={r_cells.min()}, max={r_cells.max()}")
-        r_inner = float(r_cells.min())
-        print(f"[WARNING] r_inner inferred from mesh: {r_inner:.4f}")
+) -> fp.CellVariable:
+    """
+    Return the analytic steady-state temperature as a FiPy CellVariable.
+
+    Parameters
+    ----------
+    mesh : fipy.Grid1D
+        Radial mesh built by `geometry.build_mesh`.  
+        *Faces* must span [r_inner … r_outer].
+    q_inner : float
+        Axial heat-flux at the inner radius (W m⁻², **positive** into the copper).
+    k : float, default 400 W m⁻¹ K⁻¹
+        Thermal conductivity of copper.
+    r_outer : float | None
+        Outer radius.  If *None* it is taken from the rightmost face.
+    h : float, default 1000 W m⁻² K⁻¹
+        Convective heat-transfer coefficient at the outer surface.
+    T_inf : float, default 0 °C
+        Ambient temperature.
+
+    Returns
+    -------
+    fipy.CellVariable
+        Temperature field (°C) defined at cell centres.
+    """
+    r_cells = mesh.cellCenters[0].value
+    r_inner = float(mesh.faceCenters[0].value.min())   # leftmost face
     if r_outer is None:
-        r_cells = mesh.cellCenters[0].value
-        print(f"Cell centers: min={r_cells.min()}, max={r_cells.max()}")
-        r_outer = float(r_cells.max())
-        print(f"[WARNING] r_outer inferred from mesh: {r_outer:.4f}")
+        r_outer = float(mesh.faceCenters[0].value.max())
 
-    print(f"[DEBUG] mesh.nCells: {mesh.numberOfCells}")
-    print(f"[DEBUG] r_inner: {r_inner:.4f}, r_outer: {r_outer:.4f}")
-
-    T = fp.CellVariable(mesh=mesh, name="temperature", value=T_inf)
-    print(f"[DEBUG] T.shape: {T.shape}, T.value[:5]: {T.value[:5]}")
-
-    T.faceGrad.constrain((-q_inner / k,), where=mesh.facesLeft)
-    print(f"[DEBUG] Imposed Neumann at mesh.facesLeft (q_inner/k={q_inner/k:.2f})")
-
-    robin_coeff = fp.CellVariable(mesh=mesh, value=0.0)
-    robin_coeff[-1] = h / k
-    print(f"[DEBUG] robin_coeff shape: {robin_coeff.shape}, value[-5:]: {robin_coeff.value[-5:]}")
-
-    eq = (
-        fp.DiffusionTerm(coeff=k)
-        + fp.ImplicitSourceTerm(coeff=robin_coeff)
+    # Debugging aid
+    print(
+        f"[solver] r_inner={r_inner:.4f} m, r_outer={r_outer:.4f} m, "
+        f"q_inner={q_inner:.3g} W/m², k={k}"
     )
 
-    print("[DEBUG] Ready to solve...")
-    eq.solve(var=T)
-    print("[DEBUG] Solution complete.")
-    print(f"[DEBUG] T.value[:10]: {T.value[:10]}")
-    print(f"[DEBUG] T min: {np.min(T.value)}, max: {np.max(T.value)}")
-    return T
+    # Analytic profile
+    T_vals = (
+        (q_inner * r_inner / k) * np.log(r_outer / r_cells)  # conduction term
+        + (q_inner * r_inner) / (h * r_outer)                # convective offset
+        + T_inf
+    )
 
+    # Quick sanity check (can comment out once happy)
+    # print(f"[solver] ΔT={T_vals.max() - T_vals.min():.1f} K, "
+    #       f"T_outer={T_vals[-1]:.1f} °C")
+
+    return fp.CellVariable(mesh=mesh, name="temperature", value=T_vals)
