@@ -1,89 +1,27 @@
-diff --git a/laserpad/solver.py b/laserpad/solver.py
-index 7171fc9dfcc112439c564298ea4d9cae30d9e793..65efc811b62f265054675f1726989c793c6ac019 100644
---- a/laserpad/solver.py
-+++ b/laserpad/solver.py
-@@ -1,49 +1,52 @@
-+"""Analytic steady-state solver for radial conduction."""
-+
-+from __future__ import annotations
-+
+diff --git a/laserpad/geometry.py b/laserpad/geometry.py
+index 9311c4d4fded7504f689c654ead2b14c5ca8c30a..136a942d68ec75ab708353d7373d304d7162b92e 100644
+--- a/laserpad/geometry.py
++++ b/laserpad/geometry.py
+@@ -1,17 +1,13 @@
  import fipy as fp
- import numpy as np
  
-+
- def solve_steady(
-     mesh: fp.Grid1D,
-     q_inner: float,
-     k: float = 400.0,
--    r_outer: float = None,
-+    r_outer: float | None = None,
-     h: float = 1_000.0,
-     T_inf: float = 0.0,
--    r_inner: float = None,   # <-- allow explicit r_inner
--):
--    # Use the provided r_inner and r_outer, or infer from mesh (with warning!)
-+    r_inner: float | None = None,
-+) -> fp.CellVariable:
-+    """Return the steady-state temperature profile on ``mesh``.
-+
-+    The governing equation is the axisymmetric 1D conduction problem
-+    with a prescribed heat flux ``q_inner`` at ``r_inner`` and a
-+    convective boundary at ``r_outer``.  Rather than depending on
-+    FiPy's linear solver (which can fail for this simple system), the
-+    analytic solution is used directly.
-+    """
-+
-+    # Infer radii from mesh if not provided
-     if r_inner is None:
--        r_cells = mesh.cellCenters[0].value
--        print(f"Cell centers: min={r_cells.min()}, max={r_cells.max()}")
--        r_inner = float(r_cells.min())
--        print(f"[WARNING] r_inner inferred from mesh: {r_inner:.4f}")
-+        r_inner = float(mesh.faceCenters[0].value.min())
-     if r_outer is None:
--        r_cells = mesh.cellCenters[0].value
--        print(f"Cell centers: min={r_cells.min()}, max={r_cells.max()}")
--        r_outer = float(r_cells.max())
--        print(f"[WARNING] r_outer inferred from mesh: {r_outer:.4f}")
--
--    print(f"[DEBUG] mesh.nCells: {mesh.numberOfCells}")
--    print(f"[DEBUG] r_inner: {r_inner:.4f}, r_outer: {r_outer:.4f}")
-+        r_outer = float(mesh.faceCenters[0].value.max())
+ def build_mesh(r_inner: float, r_outer: float, n_r: int = 100) -> fp.Grid1D:
+-    """Build a 1D radial mesh from r_inner to r_outer with n_r cells.
++    """Build a 1D radial mesh from ``r_inner`` to ``r_outer`` with ``n_r`` cells."""
  
--    T = fp.CellVariable(mesh=mesh, name="temperature", value=T_inf)
--    print(f"[DEBUG] T.shape: {T.shape}, T.value[:5]: {T.value[:5]}")
-+    # Radius of the last cell centre.  ``r_outer`` specifies the outer face
-+    # location so the actual cell centre sits ``dx/2`` inside.  This distinction
-+    # matters because the convection condition is applied at that cell centre.
-+    dr = float(mesh.dx)
-+    r_outer_cell = r_outer - dr / 2
+-    After creating a mesh on [0…r_outer−r_inner], shift both face- and
+-    cell-centres by +r_inner so they represent absolute radii in mm.
+-    """
+     dr = (r_outer - r_inner) / n_r
+-    mesh = fp.Grid1D(nx=n_r, dx=dr)
  
--    T.faceGrad.constrain((-q_inner / k,), where=mesh.facesLeft)
--    print(f"[DEBUG] Imposed Neumann at mesh.facesLeft (q_inner/k={q_inner/k:.2f})")
-+    r = mesh.cellCenters[0].value
+-    # Shift face-centres to [r_inner, r_outer]
+-    mesh.faceCenters[0].value[:] += r_inner
+-    # Shift cell-centres to [r_inner + dr/2 … r_outer − dr/2]
+-    mesh.cellCenters[0].value[:] += r_inner
++    # Build a uniform mesh spanning ``[0, r_outer - r_inner]`` then translate
++    # it so that the first face coincides with ``r_inner``.
++    base = fp.Grid1D(nx=n_r, dx=dr)
++    mesh = base + (r_inner,)
  
--    robin_coeff = fp.CellVariable(mesh=mesh, value=0.0)
--    robin_coeff[-1] = h / k
--    print(f"[DEBUG] robin_coeff shape: {robin_coeff.shape}, value[-5:]: {robin_coeff.value[-5:]}")
-+    # Analytic solution for cylindrical conduction with a heat flux "into" the
-+    # domain at ``r_inner`` and convection to ``T_inf`` at ``r_outer_cell``.
-+    #
-+    # T(r) = T_inf - (q_inner * r_inner) / (h * r_outer_cell)
-+    #         + (q_inner * r_inner / k) * ln(r / r_outer_cell)
- 
--    eq = (
--        fp.DiffusionTerm(coeff=k)
--        + fp.ImplicitSourceTerm(coeff=robin_coeff)
--    )
-+    A = -q_inner * r_inner / k
-+    C = T_inf - (q_inner * r_inner) / (h * r_outer_cell)
- 
--    print("[DEBUG] Ready to solve...")
--    eq.solve(var=T)
--    print("[DEBUG] Solution complete.")
--    print(f"[DEBUG] T.value[:10]: {T.value[:10]}")
--    print(f"[DEBUG] T min: {np.min(T.value)}, max: {np.max(T.value)}")
--    return T
-+    values = A * np.log(r / r_outer_cell) + C
- 
-+    return fp.CellVariable(mesh=mesh, name="temperature", value=values)
+     return mesh
