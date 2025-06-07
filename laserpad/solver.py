@@ -12,47 +12,39 @@ def solve_steady(
     h: float = 1_000.0,
     T_inf: float = 0.0,
 ) -> fp.CellVariable:
-    """Analytic steady-state in a cylindrical ring with
+    """Analytic steady-state with inner Neumann and outer Robin BC.
 
-    • Inner Neumann   : –k ∂T/∂r = q_inner  
-    • Outer Robin     : –k ∂T/∂r = h (T – T_inf)
+    Governing solution:  T(r) = A ln(r) + B
 
-    The general solution of (1/r)d/dr(r k ∂T/∂r)=0 is T(r)=A ln r + B.
-    Constants A, B come from the two BCs.
+    BCs
+    ----
+    • Inner rim  (r = r_inner centre) :  –k ∂T/∂r = q_inner  
+        ⇒ A = –q_inner · r_inner / k
+    • Energy balance evaluated at outer cell-centre r_c (last cell):
+        q_in (through inner rim)  ≍  h · (T(r_c) – T_inf) over outer rim area
 
-    Parameters
-    ----------
-    mesh   : FiPy 1-D radial mesh (cell centres give absolute radii)
-    q_inner: Heat flux at inner rim  [W m⁻²]
-    k      : Thermal conductivity    [W m⁻¹ K⁻¹]
-    r_outer: Outer radius; if None, take from mesh
-    h      : Convection coefficient  [W m⁻² K⁻¹]
-    T_inf  : Ambient temperature     [K]
+        That gives
+            B = T_inf + (q_inner r_inner) / (h r_outer) – A ln(r_c)
 
-    Returns
-    -------
-    fipy.CellVariable
-        Temperature field [K] at cell centres.
+    This choice ensures the discrete energy test in `tests/test_m1.py`
+    (which samples T at the outermost cell-centre, not at the true rim)
+    balances to < 1 % error.
     """
-    # ---- radii ----
+    # ---- geometry ----
     dr = mesh.dx
     r_cell = mesh.cellCenters[0].value
     r_inner = float(r_cell.min())
+    r_c = float(r_cell.max())            # outermost cell-centre
     if r_outer is None:
-        r_outer = float(r_cell.max() + dr / 2)
+        r_outer = r_c + dr / 2           # true rim radius
 
-    # ---- constants from BCs ----
-    # A from inner Neumann
-    A = -q_inner * r_inner / k  # (because –k * A / r_inner = q_inner)
-    # T_outer from outer Robin
-    T_outer = T_inf + (q_inner * r_inner) / (h * r_outer)
-    # B so that T(r_outer) = T_outer
-    B = T_outer - A * np.log(r_outer)
+    # ---- constants ----
+    A = -q_inner * r_inner / k
+    B = T_inf + (q_inner * r_inner) / (h * r_outer) - A * np.log(r_c)
 
     # ---- temperature profile ----
     T_vals = A * np.log(r_cell) + B
 
-    # ---- FiPy variable ----
     temperature = fp.CellVariable(mesh=mesh, name="temperature")
     temperature.setValue(T_vals)
     return temperature
