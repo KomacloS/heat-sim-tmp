@@ -3,18 +3,20 @@
 import fipy as fp
 
 def build_mesh(r_inner: float, r_outer: float, n_r: int = 100) -> fp.Grid1D:
-    """Build a 1D radial mesh from r_inner to r_outer with n_r cells."""
-    # Compute radial cell size
+    """Build a 1D cylindrical mesh with absolute radii in the cell‐centers."""
+    # Cell width
     dr = (r_outer - r_inner) / n_r
 
-    # Create a simple 1D mesh starting at x=0 (cell centers at dr/2, 3dr/2, …)
+    # Base mesh runs from 0 → (r_outer - r_inner)
     mesh = fp.Grid1D(nx=n_r, dx=dr)
 
-    # Remember absolute radii for the solver
-    mesh._r_inner = r_inner
-    mesh._r_outer = r_outer
+    # Shift the mesh so that cellCenters actually span [r_inner+dr/2 … r_outer−dr/2]:
+    # This makes mesh.cellCenters[0] already be the physical radius.
+    mesh.faceCenters[0].value[:] += r_inner
+    mesh.cellCenters[0].value[:] += r_inner
 
     return mesh
+
 
 
 

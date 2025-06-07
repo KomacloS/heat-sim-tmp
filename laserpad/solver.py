@@ -1,39 +1,30 @@
 # laserpad/solver.py
 
-from typing import Optional
 import fipy as fp
 
 def solve_steady(
-    mesh: fp.Grid1D,
-    q_inner: float,
-    k: float = 400.0,
-    r_outer: Optional[float] = None
+    mesh: fp.Grid1D, q_inner: float, k: float = 400.0
 ) -> fp.CellVariable:
-    """Compute a steady-state temperature profile on a cylindrical annulus.
+    """Solve 1D steady‐state cylindrical conduction with inner heat‐flux and insulated outer rim.
 
-    We use a simple linear T(r) such that dT/dr = -q_inner/k everywhere,
-    and then enforce dT/dr ≃ 0 at the outermost cell for an insulated rim.
+    Equation: (1/r) d/dr (r k dT/dr) = 0
+    BCs:  -k dT/dr |_{inner} = q_inner,    dT/dr |_{outer} = 0
     """
-    # Relative positions along the mesh (from dr/2 up to length - dr/2)
-    r_rel = mesh.cellCenters[0].value.copy()
+    # Initialize temperature field (initial value doesn't impose Dirichlet on outer)
+    T = fp.CellVariable(mesh=mesh, name="temperature", value=0.0)
 
-    # Recover absolute radii
-    r_inner = mesh._r_inner
-    r_outer = r_outer if r_outer is not None else mesh._r_outer
+    # Build the axisymmetric diffusion equation
+    eq = fp.DiffusionTerm(coeff=k)
 
-    # Absolute cell-centers
-    r_cell = r_rel + r_inner
+    # Apply a Neumann BC at the inner face (mesh.facesLeft):
+    #   -k dT/dr = q_inner  ⇒  add (q_inner / k) at that face
+    eq += (q_inner / k) * mesh.facesLeft
 
-    # Linear profile: T(r) = (r_outer - r) * (q_inner / k)
-    T_vals = (r_outer - r_cell) * (q_inner / k)
+    # Solve steady‐state (outer default is zero‐flux)
+    eq.solve(var=T)
 
-    # Enforce insulated outer boundary: zero slope at last cell
-    T_vals[-1] = T_vals[-2]
+    return T
 
-    # Populate FiPy variable
-    temperature = fp.CellVariable(mesh=mesh, name="temperature")
-    temperature.setValue(T_vals)
-    return temperature
 
 
 
