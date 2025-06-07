@@ -2,6 +2,7 @@ import math
 from typing import Optional
 
 import fipy as fp
+import numpy as np
 
 
 def solve_steady(
@@ -12,60 +13,53 @@ def solve_steady(
     h: float = 1_000.0,
     T_inf: float = 0.0,
 ) -> fp.CellVariable:
-    """Steady-state cylindrical conduction solved numerically with FiPy FVM.
+    """Steady-state cylindrical conduction (FiPy FVM).
 
     BCs
     ----
-    • Inner rim  (r = r_inner)  :  −k ∂T/∂r = q_inner   (Neumann)  
-    • Outer rim  (r = r_outer)  :  −k ∂T/∂r = h (T − T_inf)  (Robin)
+    • Inner rim :  −k ∂T/∂r = q_inner      (Neumann)  
+    • Outer rim :  −k ∂T/∂r = h (T − T_inf)  (Robin)
 
     Parameters
     ----------
-    mesh
-        1-D radial `Grid1D`; cell centres hold absolute radii (m).
-    q_inner
-        Applied heat flux at the inner rim (W m⁻², positive into domain).
-    k
-        Thermal conductivity of copper (W m⁻¹ K⁻¹).
-    r_outer
-        Optional outer radius; if `None`, computed from mesh.
-    h
-        Convection coefficient at the outer rim (W m⁻² K⁻¹).
-    T_inf
-        Ambient reference temperature for convection (K).
+    mesh   : 1-D `Grid1D` (cell centers = radii, m)
+    q_inner: heat-flux at inner rim [W m⁻²], positive into ring
+    k      : thermal conductivity [W m⁻¹ K⁻¹]
+    r_outer: optional outer radius; if None, infer from mesh
+    h      : convection coefficient at outer rim [W m⁻² K⁻¹]
+    T_inf  : ambient reference temperature [K]
 
     Returns
     -------
-    fipy.CellVariable
-        Steady-state temperature field (K).
+    FiPy CellVariable – steady-state temperature field (K)
     """
-    # ---------------- absolute radii ----------------
+    # ---------------- radii ----------------
     dr = mesh.dx
     r_cell = mesh.cellCenters[0].value
     r_inner = float(r_cell.min())
     if r_outer is None:
         r_outer = float(r_cell.max() + dr / 2)
 
-    # ---------------- variable ----------------------
+    # ---------------- variable -------------
     T = fp.CellVariable(mesh=mesh, name="temperature", value=T_inf)
 
-    # ---------------- inner Neumann -----------------
-    # FiPy: impose gradient directly on faces
-    #   −k ∂T/∂r = q_inner  ⇒  ∂T/∂r = −q_inner / k
+    # ---------------- inner Neumann --------
+    # −k ∂T/∂r = q_inner  ⇒  ∂T/∂r = −q_inner / k
     T.faceGrad.constrain((-q_inner / k,), where=mesh.facesLeft)
 
-    # ---------------- governing equation ------------
-    # DiffusionTerm in 1-D uses axisymmetric form (1/r) d/dr(r k dT/dr)
-    eq = fp.DiffusionTerm(coeff=k)
+    # ---------------- diffusion term -------
+    eq = fp.DiffusionTerm(coeff=k)  # 1/r d/dr(r k dT/dr) in 1-D cylindrical
 
-    # ---------------- outer Robin -------------------
-    #   −k ∂T/∂r = h (T − T_inf)
-    # Implemented via implicit + explicit source terms
-    outer = mesh.facesRight
+    # ---------------- outer Robin ----------
+    # Build a cell-mask that is 1 only for the last cell
+    beta = fp.CellVariable(mesh=mesh, value=0.0)
+    beta[-1] = 1.0
 
-    eq += fp.ImplicitSourceTerm(coeff=h / k, var=T, where=outer)  # h·T
-    eq += fp.ExplicitSourceTerm(coeff=(h * T_inf) / k, where=outer)  # −h·T_inf
+    # implicit:  h · T
+    eq += fp.ImplicitSourceTerm(coeff=(h / k) * beta)
+    # explicit: −h · T_inf
+    eq += fp.ExplicitSourceTerm(coeff=(h * T_inf / k) * beta)
 
-    # ---------------- solve -------------------------
+    # ---------------- solve ----------------
     eq.solve(var=T)
     return T
