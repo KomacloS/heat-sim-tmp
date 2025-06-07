@@ -1,36 +1,47 @@
 # laserpad/solver.py
 
 from typing import Optional
+import numpy as np
 import fipy as fp
+
 
 def solve_steady(
     mesh: fp.Grid1D,
     q_inner: float,
     k: float = 400.0,
-    r_outer: Optional[float] = None
+    r_outer: Optional[float] = None,
 ) -> fp.CellVariable:
-    """Compute steady-state temperature on a cylindrical annulus.
+    """Steady-state cylindrical conduction with inner heat-flux and insulated outer rim.
 
-    Solves (1/r)·d/dr(r·k·dT/dr)=0 with:
-      • inner Neumann BC: -k·dT/dr = q_inner
-      • outer insulated BC: dT/dr = 0
+    Analytical solution:
+        T(r) = (q_inner * r_inner / k) * ln(r_outer / r)
 
-    Note:
-      - r_outer is accepted for compatibility but not used in the FVM solve.
+    Args:
+        mesh: 1-D FiPy mesh whose cellCenters already contain absolute radii.
+        q_inner: Heat flux [W m⁻²] applied on r = r_inner.
+        k: Thermal conductivity [W m⁻¹ K⁻¹].
+        r_outer: Optional outer radius; if None, taken from mesh.
+
+    Returns:
+        FiPy CellVariable holding temperature (K) at cell centres.
     """
-    # Initialize temperature field
-    T = fp.CellVariable(mesh=mesh, name="temperature", value=0.0)
+    # Absolute radii of cell centres
+    r_cell = mesh.cellCenters[0].value.copy()
 
-    # Build the axisymmetric diffusion equation
-    eq = fp.DiffusionTerm(coeff=k)
+    # Inner / outer radii
+    r_inner = float(np.min(r_cell))
+    if r_outer is None:
+        r_outer = float(np.max(r_cell))
 
-    # Apply inner Neumann (heat-flux) at the left face
-    eq += (q_inner / k) * mesh.facesLeft
+    # Logarithmic temperature profile
+    coeff = q_inner * r_inner / k
+    T_vals = coeff * np.log(r_outer / r_cell)
 
-    # Solve steady-state (outer face defaults to zero-flux)
-    eq.solve(var=T)
+    # Build FiPy variable
+    temperature = fp.CellVariable(mesh=mesh, name="temperature")
+    temperature.setValue(T_vals)
+    return temperature
 
-    return T
 
 
 
