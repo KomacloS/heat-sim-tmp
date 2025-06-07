@@ -1,36 +1,32 @@
-# laserpad/solver.py
 import fipy as fp
 import numpy as np
-from typing import Optional
 
-def solve_steady(mesh: fp.Grid1D,
-                 q_inner: float,
-                 k: float = 400.0,
-                 r_outer: Optional[float] = None,
-                 h: float = 1_000.0,
-                 T_inf: float = 0.0) -> fp.CellVariable:
-    """Steady 1-D conduction in a ring; all units SI."""
-    r = mesh.cellCenters[0]          # absolute radii [m]
-    dr = float(mesh.dx)
-    if r_outer is None:
-        r_outer = float(r.max() + dr/2)
+def solve_steady(mesh, q_inner, k=400.0, h=1_000.0, T_inf=0.0):
+    """
+    Steady 1-D conduction in a ring (r-direction only, SI units).
 
-    T = fp.CellVariable(mesh=mesh, value=T_inf, name="temperature")
+    Inner face:  −k ∂T/∂r =  q_inner          (Neumann)
+    Outer face:  −k ∂T/∂r =  h (T − T_inf)    (Robin)
+    """
+    # ------------------------------------------------------------------ unknown
+    T = fp.CellVariable(mesh=mesh, name="temperature", value=T_inf)
 
-    # inner heat-flux  (−k∂T/∂r = q_inner)
+    # ---------------------------------------------------------------- inner BC
     T.faceGrad.constrain((-q_inner / k,), where=mesh.facesLeft)
 
-    # --- cylindrical terms -------------------------------------------
-    r = mesh.cellCenters[0]                      # absolute radii [m]
-
-    beta = np.zeros(mesh.numberOfCells)          # 1 in the last cell
-    beta[-1] = 1.0
-    beta = fp.CellVariable(mesh=mesh, value=beta)
-
-    eq = (
-        fp.DiffusionTerm(coeff=k * r, var=T)     # ∂/∂r ( r k ∂T/∂r )
-        + fp.ImplicitSourceTerm(coeff=beta * h * r, var=T)   # + β h r T
-        - beta * h * r * T_inf                   # = β h r T∞   (T∞=0 here)
+    # ---------------------------------------------------------------- outer BC
+    # Robin:  ∂T/∂r = −h/k (T − T_inf)   (imposed on outer face)
+    T.faceGrad.constrain(
+        (-h / k) * (T.faceValue - T_inf), where=mesh.facesRight
     )
+
+    # ---------------------------------------------------------------- operator
+    r = mesh.cellCenters[0]              # absolute radii [m]
+
+    # For steady, source-free radial conduction:
+    #     d/dr ( r k dT/dr ) = 0
+    # in FiPy form → DiffusionTerm( k * r )
+    eq = fp.DiffusionTerm(coeff=k * r, var=T)
+
     eq.solve(var=T)
     return T
