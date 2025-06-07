@@ -48,7 +48,7 @@ def solve_steady(
     eq = (
         fp.DiffusionTerm(coeff=k, var=T)
         + fp.ImplicitSourceTerm(coeff=beta * h / k, var=T)   #  h·T   (implicit)
-        + fp.ExplicitSourceTerm(coeff=beta * h * T_inf / k, var=T)  # −h·T∞
+        + fp.explicitSourceTerm(coeff=beta * h * T_inf / k, var=T)  # −h·T∞
     )
 
 
