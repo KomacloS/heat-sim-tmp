@@ -12,40 +12,47 @@ def solve_steady(
     T_inf: float = 0.0,
 ) -> fp.CellVariable:
     """
-    Cylindrical, steady-state conduction solved with FiPy FVM.
+    Steady-state 1-D cylindrical conduction solved with FiPy FVM.
 
-    Inner BC (r = r_inner):
-        −k ∂T/∂r  =  q_inner          (Neumann)
+    BCs
+    ----
+    • Inner face (r = r_inner) :  −k ∂T/∂r = q_inner          (Neumann)
+    • Outer face (r = r_outer) :  −k ∂T/∂r = h (T − T_inf)    (Robin)
 
-    Outer BC (r = r_outer):
-        −k ∂T/∂r  =  h (T − T_inf)    (Robin)
-
-    All inputs are **SI**.  The mesh must already hold absolute radii
-    (``build_mesh`` does the origin shift).
+    All arguments are **SI units**.  The mesh returned by `build_mesh`
+    already stores absolute radii, so no conversion is needed here.
     """
-    # --- radii ----------------------------------------------------------
+    # ---------------------------------------------------------------------
+    # Radii bookkeeping
     dr       = float(mesh.dx)
-    r_cell   = mesh.cellCenters[0].value
-    r_inner  = float(r_cell.min() - dr / 2.0)
-    r_outer  = float(r_cell.max() + dr / 2.0) if r_outer is None else r_outer
+    r_cells  = mesh.cellCenters[0].value
+    r_inner  = float(r_cells.min() - dr / 2.0)
+    if r_outer is None:
+        r_outer = float(r_cells.max() + dr / 2.0)
 
-    # --- unknown --------------------------------------------------------
+    # ---------------------------------------------------------------------
+    # Unknown field
     T = fp.CellVariable(mesh=mesh, name="temperature", value=T_inf)
 
-    # ---- inner Neumann:  ∂T/∂r = −q/k  ---------------------------------
+    # ---------------------------------------------------------------------
+    # Inner Neumann: ∂T/∂r = −q/k  (imposed on the inner face)
     T.faceGrad.constrain((-q_inner / k,), where=mesh.facesLeft)
 
-    # ---- outer Robin on last cell ----------------------------------------
-    last = mesh.cellCenters[-1]           # mask for final cell
-    beta = fp.CellVariable(mesh=mesh, value=0.0)
-    beta[-1] = 1.0                        # 1 in last cell, 0 elsewhere
+    # ---------------------------------------------------------------------
+    # Outer Robin implemented as last-cell source terms
+    beta = fp.CellVariable(mesh=mesh, value=0.0)   # 1 only in last cell
+    beta[-1] = 1.0
 
+    # Governing equation:
+    #   (1/r) d/dr (r k dT/dr)  +  (h / k) β T  =  (h / k) β T_inf
     eq = (
-        fp.DiffusionTerm(coeff=k)                 # 1/r ∂/∂r(r k ∂T/∂r)
-        + fp.ImplicitSourceTerm(coeff=beta * h / k, var=T)   #   h · T
-        + (beta * h * T_inf / k)                  # – h · T_inf    (RHS)
-        + fp.ImplicitSourceTerm(coeff=1e-12, var=T)          # ε·T anchor
+        fp.DiffusionTerm(coeff=k, var=T)                  # implicit diffusion
+        + fp.ImplicitSourceTerm(coeff=beta * h / k, var=T)  # implicit h·T
+        + beta * h * T_inf / k                            # explicit RHS
+        + fp.ImplicitSourceTerm(coeff=1e-12, var=T)       # ε·T to anchor matrix
     )
 
-    eq.solve(var=T)     # < 2 ms for 100 cells
+    # ---------------------------------------------------------------------
+    eq.solve(var=T)
     return T
+
