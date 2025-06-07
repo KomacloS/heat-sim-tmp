@@ -1,40 +1,35 @@
 # laserpad/solver.py
 import fipy as fp
+import numpy as np
 from typing import Optional
 
-def solve_steady(
-    mesh: fp.Grid1D,
-    q_inner: float,
-    k: float = 400.0,
-    r_outer: Optional[float] = None,
-    h: float = 1_000.0,
-    T_inf: float = 0.0,
-) -> fp.CellVariable:
-    """Steady 1-D conduction with a Robin BC on the outer rim (SI units)."""
+def solve_steady(mesh: fp.Grid1D,
+                 q_inner: float,
+                 k: float = 400.0,
+                 r_outer: Optional[float] = None,
+                 h: float = 1_000.0,
+                 T_inf: float = 0.0) -> fp.CellVariable:
 
-    # radii bookkeeping ---------------------------------------------------
-    dr      = float(mesh.dx)
-    r_cells = mesh.cellCenters[0].value
-    r_inner = float(r_cells.min() - dr / 2.0)
-    if r_outer is None:
-        r_outer = float(r_cells.max() + dr / 2.0)
+    r = mesh.cellCenters[0]          # absolute radii [m]
+    dr = float(mesh.dx)
+    if r_outer is None:              # outer face radius
+        r_outer = float(r.max() + dr/2)
 
-    # unknown --------------------------------------------------------------
-    T = fp.CellVariable(mesh=mesh, name="temperature", value=T_inf)
+    T = fp.CellVariable(mesh=mesh, value=T_inf, name="temperature")
 
-    # inner Neumann:  -k dT/dr = q_inner  ---------------------------------
-    T.faceGrad.constrain((-q_inner / k,), where=mesh.facesLeft)
+    # --- inner Neumann (heat-flux) -----------------------------------------
+    T.faceGrad.constrain((-q_inner/k,), where=mesh.facesLeft)
 
-    # ---- outer Robin via last-cell term ---------------------------------
-    beta = fp.CellVariable(mesh=mesh, value=0.0)
-    beta[-1] = 1.0             # 1 in last cell, 0 elsewhere
+    # --- outer Robin encoded as a reaction term in the last cell -----------
+    beta = np.zeros(mesh.numberOfCells, dtype=float)
+    beta[-1] = 1.0                   # only outermost cell gets the Robin term
+    beta = fp.CellVariable(mesh=mesh, value=beta)
 
-    ε = 1.0e-12                # tiny reaction in *every* cell
-
+    # Governing equation in divergence form (note the extra 'r')
     eq = (
-        fp.DiffusionTerm(coeff=k, var=T)
-        + fp.ImplicitSourceTerm(coeff=beta * h / k, var=T)   # Robin
-        + fp.ImplicitSourceTerm(coeff=ε,           var=T)    # stabiliser
+        fp.DiffusionTerm(coeff=k * r, var=T)                       # ∂/∂r(r k ∂T/∂r)
+        + fp.ImplicitSourceTerm(coeff=beta * h * r, var=T)         #   + β h r T
+        - h * T_inf * r * beta                                     # RHS  β h r T∞
     )
 
     eq.solve(var=T)
