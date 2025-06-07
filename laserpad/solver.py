@@ -47,9 +47,13 @@ def solve_steady(
     #   (1/r) d/dr (r k dT/dr)  +  (h / k) β T  =  (h / k) β T_inf
     eq = (
         fp.DiffusionTerm(coeff=k, var=T)
-        + fp.ImplicitSourceTerm(coeff=beta * h / k, var=T)   #  h·T   (implicit)
-        + fp.explicitSourceTerm(coeff=beta * h * T_inf / k, var=T)  # −h·T∞
+        + fp.ImplicitSourceTerm(coeff=beta * h / k, var=T)        #  h·T   (implicit)
+        + fp.explicitSourceTerm.explicitSourceTerm(               # ─h·T_inf (explicit)
+              coeff=beta * h * T_inf / k,
+              var=T,
+          )
     )
+
 
 
     # ---------------------------------------------------------------------
