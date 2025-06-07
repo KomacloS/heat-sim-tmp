@@ -45,7 +45,7 @@ def test_monotonic_decrease(mesh_and_temp):
 
 
 def test_energy_balance_flux(mesh_and_temp):
-    """Heat entering inner rim ≈ heat leaving by convection (< 1 % mismatch)."""
+    """q_in ≈ convective q_out (|error| < 1 %) for Robin outer BC."""
     import math
 
     mesh, temperature = mesh_and_temp
@@ -55,19 +55,17 @@ def test_energy_balance_flux(mesh_and_temp):
 
     r_inner = float(r_cell.min())
     r_outer = float(r_cell.max() + dr / 2)
-    q_inner = 1.0e6          # W m⁻²
-    k = 400.0                # W m⁻¹ K⁻¹
-    h = 1_000.0              # W m⁻² K⁻¹
+
+    q_inner = 1.0e6    # W m⁻²
+    h = 1_000.0        # W m⁻² K⁻¹
     T_inf = 0.0
 
-    # Flux in (cylindrical area 2πr)
-    flux_in_total = q_inner * 2 * math.pi * r_inner
+    # ---- total heat entering at inner rim
+    q_in = q_inner * 2 * math.pi * r_inner        # W
 
-    # Outer temperature (last cell — good enough for this resolution)
+    # ---- heat leaving by convection at outer rim
     T_outer = T_vals[-1]
-    flux_out_total = -h * (T_outer - T_inf) * 2 * math.pi * r_outer
+    q_out = h * (T_outer - T_inf) * 2 * math.pi * r_outer   # W (positive outwards)
 
-    imbalance = abs(flux_in_total + flux_out_total) / abs(flux_in_total)
-    assert imbalance < 0.01, f"Energy imbalance {imbalance*100:.2f}% > 1%"
-
-
+    imbalance = abs(q_in - q_out) / abs(q_in)
+    assert imbalance < 0.01, f"Energy imbalance {imbalance*100:.2f}% > 1 %"
