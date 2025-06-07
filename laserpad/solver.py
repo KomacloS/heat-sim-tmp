@@ -20,18 +20,17 @@ def solve_steady(mesh: fp.Grid1D,
     # inner heat-flux  (−k∂T/∂r = q_inner)
     T.faceGrad.constrain((-q_inner / k,), where=mesh.facesLeft)
 
-    # mask that activates the Robin term only in the outermost cell
-    beta = np.zeros(mesh.numberOfCells)
+    # --- cylindrical terms -------------------------------------------
+    r = mesh.cellCenters[0]                      # absolute radii [m]
+
+    beta = np.zeros(mesh.numberOfCells)          # 1 in the last cell
     beta[-1] = 1.0
     beta = fp.CellVariable(mesh=mesh, value=beta)
 
-    # **Cylindrical operator**  — note the extra factor r everywhere
     eq = (
-        fp.DiffusionTerm(coeff=k * r, var=T)          # ∂/∂r( r k ∂T/∂r )
-        + fp.ImplicitSourceTerm(coeff=beta * h * r,   #   + β h r T
-                                var=T)
-        - beta * h * r * T_inf                        # RHS: β h r T∞
+        fp.DiffusionTerm(coeff=k * r, var=T)     # ∂/∂r ( r k ∂T/∂r )
+        + fp.ImplicitSourceTerm(coeff=beta * h * r, var=T)   # + β h r T
+        - beta * h * r * T_inf                   # = β h r T∞   (T∞=0 here)
     )
-
     eq.solve(var=T)
     return T
