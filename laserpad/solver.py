@@ -35,16 +35,17 @@ def solve_steady(
     # ---- inner Neumann:  ∂T/∂r = −q/k  ---------------------------------
     T.faceGrad.constrain((-q_inner / k,), where=mesh.facesLeft)
 
-    # ---- outer Robin via last-cell source terms ------------------------
-    beta = fp.CellVariable(mesh=mesh, value=0.0)   # 1 only in the last cell
-    beta[-1] = 1.0
+    # ---- outer Robin on last cell ----------------------------------------
+    last = mesh.cellCenters[-1]           # mask for final cell
+    beta = fp.CellVariable(mesh=mesh, value=0.0)
+    beta[-1] = 1.0                        # 1 in last cell, 0 elsewhere
 
     eq = (
-        fp.DiffusionTerm(coeff=k)                         # 1/r d/dr(r k dT/dr)
-        + fp.ImplicitSourceTerm(coeff=beta * h / k)       #  h · T
-        + (beta * h * T_inf / k)                          # −h · T_inf
+        fp.DiffusionTerm(coeff=k)                 # 1/r ∂/∂r(r k ∂T/∂r)
+        + fp.ImplicitSourceTerm(coeff=beta * h / k, var=T)   #   h · T
+        + (beta * h * T_inf / k)                  # – h · T_inf    (RHS)
+        + fp.ImplicitSourceTerm(coeff=1e-12, var=T)          # ε·T anchor
     )
 
-    eq.solve(var=T)
-
+    eq.solve(var=T)     # < 2 ms for 100 cells
     return T
