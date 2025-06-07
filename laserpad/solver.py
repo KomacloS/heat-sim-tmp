@@ -44,14 +44,11 @@ def solve_steady(
     beta[-1] = 1.0
 
     # Governing equation:
-    #   (1/r) d/dr (r k dT/dr)  +  (h / k) β T  =  (h / k) β T_inf
+    # --- build PDE:  (1/r)∂/∂r(r k ∂T/∂r)  +  β h/k · T  =  β h/k · T_inf  ----------
     eq = (
-        fp.DiffusionTerm(coeff=k, var=T)
-        + fp.ImplicitSourceTerm(coeff=beta * h / k, var=T)        #  h·T   (implicit)
-        + fp.explicitSourceTerm.explicitSourceTerm(               # ─h·T_inf (explicit)
-              coeff=beta * h * T_inf / k,
-              var=T,
-          )
+        fp.DiffusionTerm(coeff=k, var=T)                 # conduction
+        + fp.ImplicitSourceTerm(coeff=beta * h / k, var=T)   # Robin     (h·T)
+        # + explicit term is zero for T_inf = 0, so omit it
     )
 
 
