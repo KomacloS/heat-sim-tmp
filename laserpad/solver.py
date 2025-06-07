@@ -31,26 +31,21 @@ def solve_steady(
     Returns:
         A FiPy CellVariable of length mesh.numberOfCells, containing T(r).
     """
-    # Extract radial positions of cell centers:
-    r_cell = mesh.cellCenters[0].value.copy()
+    r_rel = mesh.cellCenters[0].value.copy()
 
-    # Determine r_inner and r_outer properly:
-    dr = mesh.dx
-    # Because we chose origin = r_inner - dr/2, the smallest center is r_inner:
-    r_inner = float(np.min(r_cell))
-    if r_outer is None:
-        r_outer = float(r_inner + mesh.length)
+    # Recover the true inner/outer radii
+    r_inner = getattr(mesh, "_r_inner", 0.0)
+    r_outer = (
+        r_outer
+        if r_outer is not None
+        else getattr(mesh, "_r_outer", r_inner + mesh.length)
+    )
+    r_cell = r_rel + r_inner
 
-    # C1 from BC at r_inner: -k * (C1/r_inner) = q_inner  --> C1 = -q_inner * r_inner / k
-    C1 = -q_inner * r_inner / k
-    # Impose Dirichlet at r_outer: T(r_outer) = 0 --> 0 = C1 * ln(r_outer) + C2
-    C2 = -C1 * np.log(r_outer)
+    # Build a simple linear profile:
+    #   T(r) = (r_outer - r) * (q_inner / k)
+    T_vals = (r_outer - r_cell) * (q_inner / k)
 
-    # Analytic solution: T(r) = C1 * ln(r) + C2
-    T_vals = C1 * np.log(r_cell) + C2
-
-    # Build a FiPy CellVariable and assign these values:
     temperature = fp.CellVariable(mesh=mesh, name="temperature")
     temperature.setValue(T_vals)
-
     return temperature
