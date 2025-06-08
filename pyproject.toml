@@ -12,7 +12,6 @@ python     = "^3.11"
 numpy      = "^1.26"
 scipy      = "^1.13"
 matplotlib = "^3.9"
-fipy       = "^3.4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2"
