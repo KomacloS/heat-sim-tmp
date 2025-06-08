@@ -3,11 +3,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
-import fipy as fp
 
 
 def plot_ring(
-    mesh: fp.Grid1D, temperature: fp.CellVariable, r_inner: float, r_outer: float
+    r_centres: np.ndarray, temperature: np.ndarray, r_inner: float, r_outer: float
 ) -> Figure:
     """Create a polar-colored 2D plot of temperature on an annular ring.
 
@@ -15,16 +14,15 @@ def plot_ring(
     to produce a “donut-shaped” pcolormesh.
 
     Args:
-        mesh: A FiPy Grid1D mesh whose x-axis is interpreted as radial coordinate.
-        temperature: A FiPy CellVariable of same length as mesh.numberOfCells.
+        r_centres: Radial cell centres.
+        temperature: Temperature array matching ``r_centres``.
         r_inner: Inner radius of the ring.
         r_outer: Outer radius of the ring.
 
     Returns:
         A Matplotlib Figure with a polar pcolormesh, and a colorbar labeled “°C”.
     """
-    # Number of radial cells:
-    n_r = mesh.numberOfCells
+    n_r = len(r_centres)
 
     # Build radial edges (n_r + 1):
     r_edges = np.linspace(r_inner, r_outer, n_r + 1)
@@ -39,10 +37,8 @@ def plot_ring(
     # Build the 2D Z-array: each ring cell has a constant T from the 1D solution:
     # temperature.value has length n_r. We want shape (n_r, n_theta), so broadcast:
     Z = np.zeros((n_r, n_theta))
-    # Note: we assigned mesh cell centers at r_inner + (i + 0.5)*dr; temperature.value[i]
-    # corresponds to ring between r_edges[i] and r_edges[i+1].
     for i in range(n_r):
-        Z[i, :] = float(temperature.value[i])
+        Z[i, :] = float(temperature[i])
 
     # Create polar plot:
     fig = plt.figure(figsize=(6, 6))

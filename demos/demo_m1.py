@@ -44,9 +44,11 @@ def main() -> None:
     q_flux = args.q_flux
     n_r = args.n_r
 
-    mesh = build_mesh(r_inner=r_inner, r_outer=r_outer, n_r=n_r)
-    temperature = solve_steady(mesh=mesh, q_inner=q_flux, k=400.0, r_outer=r_outer)
-    plot_ring(mesh=mesh, temperature=temperature, r_inner=r_inner, r_outer=r_outer)
+    r_centres, dr = build_mesh(r_inner=r_inner, r_outer=r_outer, n_r=n_r)
+    temperature = solve_steady(
+        r_centres=r_centres, dr=dr, q_inner=q_flux, k=400.0, r_outer=r_outer
+    )
+    plot_ring(r_centres=r_centres, temperature=temperature, r_inner=r_inner, r_outer=r_outer)
 
     plt.show()
 
