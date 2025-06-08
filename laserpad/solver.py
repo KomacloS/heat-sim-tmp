@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import fipy as fp
+import fipy as fp  # type: ignore[import-untyped]
 import numpy as np
 
 
