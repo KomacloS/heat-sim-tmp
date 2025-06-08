@@ -46,7 +46,10 @@ def main() -> None:
 
     mesh = build_mesh(r_inner=r_inner, r_outer=r_outer, n_r=n_r)
     temperature = solve_steady(mesh=mesh, q_inner=q_flux, k=400.0, r_outer=r_outer)
-    plot_ring(mesh=mesh, temperature=temperature, r_inner=r_inner, r_outer=r_outer)
+
+    r_centres = mesh.cellCenters[0].value
+    T_vals = temperature.value
+    plot_ring(r_centres=r_centres, T=T_vals)
 
     plt.show()
 

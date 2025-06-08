@@ -3,46 +3,44 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
-import fipy as fp
 
 
-def plot_ring(
-    mesh: fp.Grid1D, temperature: fp.CellVariable, r_inner: float, r_outer: float
-) -> Figure:
+def plot_ring(r_centres: np.ndarray, T: np.ndarray) -> Figure:
     """Create a polar-colored 2D plot of temperature on an annular ring.
 
-    We take the 1D radial solution (mesh + temperature) and spin it around θ ∈ [0, 2π]
-    to produce a “donut-shaped” pcolormesh.
+    The function spins the 1‑D radial temperature profile ``T`` about the
+    origin to create a 2‑D polar ``pcolormesh``.
 
     Args:
-        mesh: A FiPy Grid1D mesh whose x-axis is interpreted as radial coordinate.
-        temperature: A FiPy CellVariable of same length as mesh.numberOfCells.
-        r_inner: Inner radius of the ring.
-        r_outer: Outer radius of the ring.
+        r_centres: Radial cell-centre positions.
+        T: Temperature values at ``r_centres``.
 
     Returns:
-        A Matplotlib Figure with a polar pcolormesh, and a colorbar labeled “°C”.
+        A Matplotlib Figure with a polar pcolormesh, and a colorbar labelled
+        ``"°C"``.
     """
-    # Number of radial cells:
-    n_r = mesh.numberOfCells
+    n_r = len(r_centres)
 
-    # Build radial edges (n_r + 1):
-    r_edges = np.linspace(r_inner, r_outer, n_r + 1)
+    # Estimate cell edges assuming near-uniform spacing
+    edges = np.empty(n_r + 1)
+    edges[1:-1] = (r_centres[:-1] + r_centres[1:]) / 2.0
+    dr0 = r_centres[1] - r_centres[0]
+    edges[0] = r_centres[0] - dr0 / 2.0
+    dr_last = r_centres[-1] - r_centres[-2]
+    edges[-1] = r_centres[-1] + dr_last / 2.0
+
+    r_inner = edges[0]
+    r_outer = edges[-1]
 
     # Number of angular divisions for smooth ring:
     n_theta = 200
     theta_edges = np.linspace(0.0, 2.0 * np.pi, n_theta + 1)
 
     # Build a meshgrid in (θ, r) for the boundaries:
-    Theta, R = np.meshgrid(theta_edges, r_edges)
+    Theta, R = np.meshgrid(theta_edges, edges)
 
-    # Build the 2D Z-array: each ring cell has a constant T from the 1D solution:
-    # temperature.value has length n_r. We want shape (n_r, n_theta), so broadcast:
-    Z = np.zeros((n_r, n_theta))
-    # Note: we assigned mesh cell centers at r_inner + (i + 0.5)*dr; temperature.value[i]
-    # corresponds to ring between r_edges[i] and r_edges[i+1].
-    for i in range(n_r):
-        Z[i, :] = float(temperature.value[i])
+    # Build the 2D Z-array: each ring cell has a constant T from the 1D solution
+    Z = np.repeat(T[:, np.newaxis], n_theta, axis=1)
 
     # Create polar plot:
     fig = plt.figure(figsize=(6, 6))
