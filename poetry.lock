@@ -167,23 +167,6 @@ docs = ["ipython", "matplotlib", "numpydoc", "sphinx"]
 tests = ["pytest", "pytest-cov", "pytest-xdist"]
 
 [[package]]
-name = "fipy"
-version = "3.4.5"
-description = "A finite volume PDE solver in Python"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "FiPy-3.4.5-py3-none-any.whl", hash = "sha256:0c1c046186999d876de1ff9e555fe8788b0895d03bb67436b1d896181678018a"},
-]
-
-[package.dependencies]
-future = "*"
-matplotlib = "*"
-numpy = "*"
-scipy = "*"
-
-[[package]]
 name = "fonttools"
 version = "4.58.2"
 description = "Tools to manipulate font files"
@@ -248,18 +231,6 @@ type1 = ["xattr ; sys_platform == \"darwin\""]
 ufo = ["fs (>=2.2.0,<3)"]
 unicode = ["unicodedata2 (>=15.1.0) ; python_version <= \"3.12\""]
 woff = ["brotli (>=1.0.1) ; platform_python_implementation == \"CPython\"", "brotlicffi (>=0.8.0) ; platform_python_implementation != \"CPython\"", "zopfli (>=0.1.4)"]
-
-[[package]]
-name = "future"
-version = "1.0.0"
-description = "Clean single-source support for Python 3 and 2"
-optional = false
-python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
-groups = ["main"]
-files = [
-    {file = "future-1.0.0-py3-none-any.whl", hash = "sha256:929292d34f5872e70396626ef385ec22355a1fae8ad29e1a734c3e43f9fbc216"},
-    {file = "future-1.0.0.tar.gz", hash = "sha256:bd2968309307861edae1458a4f8a4f3598c03be43b97521076aebf5d94c07b05"},
-]
 
 [[package]]
 name = "iniconfig"
@@ -890,4 +861,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "09bab349002bba2d35c97c0f880fbb2184d0f04c5891cc10c52bcde7396accae"
+content-hash = "7a0019391664fb3191acc79f10be009000560ae6802325f47c12c4fcf1b708bb"

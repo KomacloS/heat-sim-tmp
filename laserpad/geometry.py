@@ -1,13 +1,26 @@
-import fipy as fp
+import numpy as np
 
 
-def build_mesh(r_inner: float, r_outer: float, n_r: int = 100) -> fp.Grid1D:
-    """Build a 1D radial mesh from ``r_inner`` to ``r_outer`` with ``n_r`` cells."""
+def build_mesh(r_inner: float, r_outer: float, n_r: int = 100) -> tuple[np.ndarray, float]:
+    """Return radial cell centres and cell width for a 1D ring.
+
+    Parameters
+    ----------
+    r_inner:
+        Inner radius of the ring in metres.
+    r_outer:
+        Outer radius of the ring in metres.
+    n_r:
+        Number of radial cells.
+
+    Returns
+    -------
+    tuple[np.ndarray, float]
+        ``r_centres`` array of length ``n_r`` giving the radial cell centres in
+        metres and ``dr`` the uniform cell width in metres.
+    """
+
     dr = (r_outer - r_inner) / n_r
+    r_centres = r_inner + (np.arange(n_r) + 0.5) * dr
 
-    # Build a uniform mesh spanning ``[0, r_outer - r_inner]`` then translate
-    # it so that the first face coincides with ``r_inner``.
-    base = fp.Grid1D(nx=n_r, dx=dr)
-    mesh = base + (r_inner,)
-
-    return mesh
+    return r_centres, dr
