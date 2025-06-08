@@ -9,7 +9,7 @@ from laserpad.solver import solve_steady
 
 
 @pytest.fixture(scope="module")
-def mesh_and_temp():
+def mesh_and_temp() -> tuple[fp.Grid1D, fp.CellVariable]:
     # Default parameters from spec:
     r_inner = 0.50
     r_outer = 1.50
@@ -24,7 +24,7 @@ def mesh_and_temp():
     return mesh, temperature
 
 
-def test_delta_T_large(mesh_and_temp):
+def test_delta_T_large(mesh_and_temp: tuple[fp.Grid1D, fp.CellVariable]) -> None:
     """Test 1: Ensure that max ΔT across the ring is > 10 K."""
     mesh, temperature = mesh_and_temp
     T_vals = temperature.value.copy()
@@ -32,7 +32,7 @@ def test_delta_T_large(mesh_and_temp):
     assert delta_T > 10.0, f"ΔT too small: {delta_T:.4f} K; expected > 10 K."
 
 
-def test_monotonic_decrease(mesh_and_temp):
+def test_monotonic_decrease(mesh_and_temp: tuple[fp.Grid1D, fp.CellVariable]) -> None:
     """Test 2: Ensure T(r) is monotonically decreasing with r."""
     mesh, temperature = mesh_and_temp
     r_cell = mesh.cellCenters[0].value.copy()
@@ -43,37 +43,34 @@ def test_monotonic_decrease(mesh_and_temp):
     T_sorted = T_vals[idx_sort]
     # Check that each subsequent T is <= previous T (monotonic non-increasing)
     diffs = np.diff(T_sorted)
-    assert np.all(diffs <= 1e-8), "Temperature is not monotonically decreasing with radius."
+    assert np.all(
+        diffs <= 1e-8
+    ), "Temperature is not monotonically decreasing with radius."
 
 
-def test_energy_balance_flux(mesh_and_temp):
+def test_energy_balance_flux(mesh_and_temp: tuple[fp.Grid1D, fp.CellVariable]) -> None:
     """Inner heat-flux ≈ outer convective heat-loss (< 1 % mismatch)."""
     import math
 
     mesh, temperature = mesh_and_temp
-    T_vals = temperature.value.copy()
     r_cell = mesh.cellCenters[0].value.copy()
     dr = mesh.dx
 
-    r_inner = float(r_cell.min() - dr / 2)      # inner face [m]
-    r_outer = float(r_cell.max() + dr / 2)      # outer face [m]
+    r_inner = float(r_cell.min() - dr / 2)
+    r_outer = float(r_cell.max() + dr / 2)
 
-    q_inner = 1.0e6         # W m⁻²
-    h = 1_000.0             # W m⁻² K⁻¹
+    q_inner = 1.0e6
+    h = 1_000.0
     T_inf = 0.0
 
-    # total heat in (W)
     q_in = q_inner * 2 * math.pi * r_inner
 
-    # Estimate the outer-face temperature from the analytic solution.  We
-    # recover the integration constant using the first cell value then evaluate
-    # T at ``r_outer``.
-    coeff = q_inner * r_inner / 400.0
-    B = T_vals[0] + coeff * math.log(r_cell[0])
-    T_outer_face = B - coeff * math.log(r_outer)
-
-    # heat out by convection at outer rim (W)
+    T_vals = temperature.value
+    r_vals = mesh.cellCenters[0].value
+    T_outer_face = T_vals[-1] + (T_vals[-1] - T_vals[-2]) / (
+        r_vals[-1] - r_vals[-2]
+    ) * (r_outer - r_vals[-1])
     q_out = -h * (T_outer_face - T_inf) * 2 * math.pi * r_outer
 
-    imbalance = abs(q_in + q_out) / abs(q_in)   # q_in should balance −q_out
+    imbalance = abs(q_in + q_out) / abs(q_in)
     assert imbalance < 0.01, f"Energy imbalance {imbalance*100:.2f}% > 1 %"

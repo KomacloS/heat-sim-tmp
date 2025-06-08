@@ -1,15 +1,14 @@
 # laserpad/plot.py
 
-from typing import Tuple
-
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import fipy as fp
 
 
 def plot_ring(
     mesh: fp.Grid1D, temperature: fp.CellVariable, r_inner: float, r_outer: float
-) -> plt.Figure:
+) -> Figure:
     """Create a polar-colored 2D plot of temperature on an annular ring.
 
     We take the 1D radial solution (mesh + temperature) and spin it around θ ∈ [0, 2π]
@@ -26,7 +25,6 @@ def plot_ring(
     """
     # Number of radial cells:
     n_r = mesh.numberOfCells
-    dr = mesh.dx
 
     # Build radial edges (n_r + 1):
     r_edges = np.linspace(r_inner, r_outer, n_r + 1)
@@ -53,7 +51,7 @@ def plot_ring(
     cb = fig.colorbar(pcm, ax=ax)
     cb.set_label("°C")
     ax.set_title("Steady-State Temperature on Annular Copper Pad")
-    ax.set_ylim([r_inner, r_outer])
+    ax.set_ylim((r_inner, r_outer))
     ax.set_yticks([])
     ax.set_xticks([])
 
