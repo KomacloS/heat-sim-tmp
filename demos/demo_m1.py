@@ -17,13 +17,13 @@ def main() -> None:
         "--r-inner",
         type=float,
         default=0.50,
-        help="Inner pad radius (default: 0.50)",
+        help="Inner pad radius in mm (default: 0.50)",
     )
     parser.add_argument(
         "--r-outer",
         type=float,
         default=1.50,
-        help="Outer pad radius (default: 1.50)",
+        help="Outer pad radius in mm (default: 1.50)",
     )
     parser.add_argument(
         "--q-flux",
@@ -39,8 +39,9 @@ def main() -> None:
     )
 
     args = parser.parse_args()
-    r_inner = args.r_inner
-    r_outer = args.r_outer
+    # CLI arguments are given in millimetres; convert to metres for calculations
+    r_inner = args.r_inner * 1e-3
+    r_outer = args.r_outer * 1e-3
     q_flux = args.q_flux
     n_r = args.n_r
 
