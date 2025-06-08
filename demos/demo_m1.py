@@ -9,7 +9,7 @@ from laserpad.solver import solve_steady
 from laserpad.plot import plot_ring
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="M1 Demo: Steady-state temperature on a copper pad ring."
     )
@@ -45,8 +45,13 @@ def main():
     n_r = args.n_r
 
     mesh = build_mesh(r_inner=r_inner, r_outer=r_outer, n_r=n_r)
-    temperature = solve_steady(mesh=mesh, q_inner=q_flux, k=400.0, r_outer=r_outer)
-    fig = plot_ring(mesh=mesh, temperature=temperature, r_inner=r_inner, r_outer=r_outer)
+    temperature = solve_steady(
+        mesh=mesh,
+        q_inner=q_flux,
+        k=400.0,
+        r_outer=r_outer,
+    )
+    plot_ring(mesh=mesh, temperature=temperature, r_inner=r_inner, r_outer=r_outer)
 
     plt.show()
 
