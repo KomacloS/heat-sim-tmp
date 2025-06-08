@@ -26,7 +26,7 @@ def solve_steady(
         r_inner = float(mesh.faceCenters[0].value.min())
     if r_outer is None:
         r_outer = float(mesh.faceCenters[0].value.max())
-    r = mesh.cellCenters[0].value3
+    r = mesh.cellCenters[0].value
     # Analytic solution with convection imposed at ``r_outer``
     # -------------------------------------------------------
     # For a radial domain r_inner <= r <= r_outer with flux ``q_inner`` entering
