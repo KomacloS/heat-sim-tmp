@@ -1,13 +1,47 @@
-import fipy as fp
+"""Simple NumPy-based radial mesh utilities."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import numpy as np
 
 
-def build_mesh(r_inner: float, r_outer: float, n_r: int = 100) -> fp.Grid1D:
-    """Build a 1D radial mesh from ``r_inner`` to ``r_outer`` with ``n_r`` cells."""
+@dataclass
+class Mesh:
+    """Uniform 1D radial mesh."""
+
+    r: np.ndarray
+    dr: float
+
+    @property
+    def r_inner(self) -> float:
+        return float(self.r[0] - self.dr / 2)
+
+    @property
+    def r_outer(self) -> float:
+        return float(self.r[-1] + self.dr / 2)
+
+
+def build_mesh(r_inner: float, r_outer: float, n_r: int = 100) -> Mesh:
+    """Build a uniform radial mesh.
+
+    Parameters
+    ----------
+    r_inner:
+        Inner radius.
+    r_outer:
+        Outer radius.
+    n_r:
+        Number of cells.
+
+    Returns
+    -------
+    Mesh
+        Mesh dataclass containing cell centres and spacing.
+    """
+
     dr = (r_outer - r_inner) / n_r
+    r = np.linspace(r_inner + dr / 2, r_outer - dr / 2, n_r)
+    return Mesh(r=r, dr=dr)
 
-    # Build a uniform mesh spanning ``[0, r_outer - r_inner]`` then translate
-    # it so that the first face coincides with ``r_inner``.
-    base = fp.Grid1D(nx=n_r, dx=dr)
-    mesh = base + (r_inner,)
-
-    return mesh
