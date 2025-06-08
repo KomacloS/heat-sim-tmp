@@ -16,10 +16,29 @@ def solve_steady(
     r_inner: float | None = None,
 ) -> fp.CellVariable:
     """Return the steady-state temperature profile on ``mesh``.
+
+    Parameters
+    ----------
+    mesh
+        Radial mesh in metres.
+    q_inner
+        Prescribed heat flux at ``r_inner`` (W/m²).
+    k
+        Thermal conductivity (W/m·K).
+    r_outer, r_inner
+        Outer and inner radii in metres. If omitted they are inferred from the
+        mesh faces.
+    h
+        Convection coefficient (W/m²·K).
+    T_inf
+        Ambient temperature (°C).
+
+    Notes
+    -----
     The governing equation is the axisymmetric steady conduction problem with a
-    prescribed heat flux ``q_inner`` at ``r_inner`` and a convective boundary at
-    ``r_outer``.  The solution is derived analytically instead of solving a
-    linear system with FiPy.
+    prescribed heat flux at ``r_inner`` and a convective boundary at ``r_outer``.
+    The solution is derived analytically instead of solving a linear system with
+    FiPy.
     """
     # Infer radii from the mesh faces if not provided
     if r_inner is None:

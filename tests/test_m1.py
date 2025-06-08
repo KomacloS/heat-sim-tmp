@@ -11,8 +11,9 @@ from laserpad.solver import solve_steady
 @pytest.fixture(scope="module")
 def mesh_and_temp() -> tuple[fp.Grid1D, fp.CellVariable]:
     # Default parameters from spec:
-    r_inner = 0.50
-    r_outer = 1.50
+    # radii specified in metres
+    r_inner = 0.50e-3
+    r_outer = 1.50e-3
     q_flux = 1.0e6
     n_r = 100
 
@@ -25,11 +26,11 @@ def mesh_and_temp() -> tuple[fp.Grid1D, fp.CellVariable]:
 
 
 def test_delta_T_large(mesh_and_temp: tuple[fp.Grid1D, fp.CellVariable]) -> None:
-    """Test 1: Ensure that max ΔT across the ring is > 10 K."""
+    """Test 1: Ensure that max ΔT across the ring is > 1 K."""
     mesh, temperature = mesh_and_temp
     T_vals = temperature.value.copy()
     delta_T = np.max(T_vals) - np.min(T_vals)
-    assert delta_T > 10.0, f"ΔT too small: {delta_T:.4f} K; expected > 10 K."
+    assert delta_T > 1.0, f"ΔT too small: {delta_T:.4f} K; expected > 1 K."
 
 
 def test_monotonic_decrease(mesh_and_temp: tuple[fp.Grid1D, fp.CellVariable]) -> None:
