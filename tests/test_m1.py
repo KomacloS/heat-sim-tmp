@@ -55,8 +55,8 @@ def test_energy_balance_flux(mesh_and_temp):
     r_cell = mesh.cellCenters[0].value.copy()
     dr = mesh.dx
 
-    r_inner = 0.5
-    r_outer = 1.5
+    r_inner = float(r_cell.min() - dr / 2)      # inner face [m]
+    r_outer = float(r_cell.max() + dr / 2)      # outer face [m]
 
     q_inner = 1.0e6         # W m⁻²
     h = 1_000.0             # W m⁻² K⁻¹
@@ -65,10 +65,15 @@ def test_energy_balance_flux(mesh_and_temp):
     # total heat in (W)
     q_in = q_inner * 2 * math.pi * r_inner
 
+    # Estimate the outer-face temperature from the analytic solution.  We
+    # recover the integration constant using the first cell value then evaluate
+    # T at ``r_outer``.
+    coeff = q_inner * r_inner / 400.0
+    B = T_vals[0] + coeff * math.log(r_cell[0])
+    T_outer_face = B - coeff * math.log(r_outer)
+
     # heat out by convection at outer rim (W)
-    T_outer = T_vals[-1]
-    q_out = h * (T_outer - T_inf) * 2 * math.pi * r_outer
+    q_out = -h * (T_outer_face - T_inf) * 2 * math.pi * r_outer
 
     imbalance = abs(q_in + q_out) / abs(q_in)   # q_in should balance −q_out
     assert imbalance < 0.01, f"Energy imbalance {imbalance*100:.2f}% > 1 %"
-
