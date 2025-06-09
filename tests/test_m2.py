@@ -23,7 +23,7 @@ def test_near_uniform_long_time() -> None:
     q = 5e4
     k = 200.0
     rho_cp = 2.0e6
-    alpha = k / rho_cp
+    alpha = k / rho_cp  # noqa: F841
     t_max = 0.1
     dt = 1e-5
     times, T = solve_transient(r_centres, dr, q, k, rho_cp, t_max, dt)
