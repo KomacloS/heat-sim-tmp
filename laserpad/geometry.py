@@ -1,17 +1,29 @@
+"""Pad geometry utilities."""
+
 from __future__ import annotations
 
-import numpy as np
+import math
+from typing import Dict
 
 
-def build_mesh(
-    r_inner: float, r_outer: float, n_r: int = 100
-) -> tuple[np.ndarray, np.ndarray]:
-    """Return cell centres and cell widths for a 1‑D radial mesh."""
+def get_pad_properties(
+    diameter_mm: float,
+    thickness_mm: float = 0.035,
+    density: float = 8960.0,
+    cp: float = 385.0,
+) -> Dict[str, float]:
+    """Return area, volume, mass and heat capacity for a circular pad."""
+    diameter_m = diameter_mm / 1000.0
+    thickness_m = thickness_mm / 1000.0
 
-    dr = (r_outer - r_inner) / n_r
-    r_edges = np.linspace(r_inner, r_outer, n_r + 1)
-    r_centres = (r_edges[:-1] + r_edges[1:]) / 2
+    area_m2 = math.pi * (diameter_m / 2.0) ** 2
+    volume_m3 = area_m2 * thickness_m
+    mass_kg = density * volume_m3
+    heat_capacity_J_per_K = mass_kg * cp
 
-    dr_array = np.full_like(r_centres, dr)
-
-    return r_centres, dr_array
+    return {
+        "area_m2": area_m2,
+        "volume_m3": volume_m3,
+        "mass_kg": mass_kg,
+        "heat_capacity_J_per_K": heat_capacity_J_per_K,
+    }

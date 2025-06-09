@@ -1,4 +1,11 @@
-﻿# Laser-Pad-Thermal
+# Laser-Pad-Thermal
 
-Milestone 1 – heat-transfer demo. Validation relies on an energy-balance check
-between the imposed inner heat flux and the convective loss at the outer rim.
+This repository contains a small Streamlit demo for heating a circular copper pad using a lumped thermal model (Milestone 1).
+
+The pad properties are computed from its diameter and thickness. Temperature rise is integrated in time assuming all laser power is absorbed.
+
+Run the interactive demo with:
+
+```bash
+poetry run demo-m1
+```
