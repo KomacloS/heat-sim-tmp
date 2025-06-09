@@ -9,3 +9,9 @@ Run the interactive demo with:
 ```bash
 poetry run demo-m1
 ```
+
+For the spatially resolved transient solver (Milestone 2):
+
+```bash
+poetry run demo-m2
+```

@@ -5,6 +5,8 @@ from __future__ import annotations
 import math
 from typing import Dict
 
+import numpy as np
+
 
 def get_pad_properties(
     diameter_mm: float,
@@ -27,3 +29,15 @@ def get_pad_properties(
         "mass_kg": mass_kg,
         "heat_capacity_J_per_K": heat_capacity_J_per_K,
     }
+
+
+def build_radial_mesh(r_inner_m: float, r_outer_m: float, n_r: int) -> tuple[np.ndarray, float]:
+    """Returns (r_centres, dr) for a uniform 1-D cylindrical mesh."""
+    if n_r <= 0:
+        raise ValueError("n_r must be positive")
+    if r_outer_m <= r_inner_m:
+        raise ValueError("r_outer_m must be larger than r_inner_m")
+
+    dr = (r_outer_m - r_inner_m) / n_r
+    r_centres = r_inner_m + (np.arange(n_r) + 0.5) * dr
+    return r_centres, dr

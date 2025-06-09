@@ -21,6 +21,7 @@ mypy   = "^1.10"
 
 [tool.poetry.scripts]
 demo-m1 = "demos.demo_m1:main"
+demo-m2 = "demos.demo_m2:main"
 
 [tool.mypy]
 python_version = "3.11"
