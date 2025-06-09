@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from typing import Dict
+from numpy.typing import NDArray
 
 import numpy as np
 
@@ -31,7 +32,9 @@ def get_pad_properties(
     }
 
 
-def build_radial_mesh(r_inner_m: float, r_outer_m: float, n_r: int) -> tuple[np.ndarray, float]:
+def build_radial_mesh(
+    r_inner_m: float, r_outer_m: float, n_r: int
+) -> tuple[NDArray[np.float_], float]:
     """Returns (r_centres, dr) for a uniform 1-D cylindrical mesh."""
     if n_r <= 0:
         raise ValueError("n_r must be positive")
