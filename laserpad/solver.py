@@ -21,3 +21,54 @@ def solve_heatup(
     for i in range(len(times) - 1):
         temps[i + 1] = temps[i] + (power_W / (m_kg * cp)) * dt
     return times, temps
+
+
+def solve_transient(
+    r_centres: NDArray[np.float_],
+    dr: float,
+    q_flux: float,
+    k: float,
+    rho_cp: float,
+    t_max: float,
+    dt: float,
+) -> tuple[NDArray[np.float_], NDArray[np.float_]]:
+    """Explicit transient solver for 1-D cylindrical conduction."""
+
+    alpha = k / rho_cp
+    dt_lim = 0.5 * dr**2 / alpha
+    if dt > dt_lim:
+        raise ValueError(
+            f"Time step {dt:g} exceeds stability limit of {dt_lim:g} seconds"
+        )
+
+    times = np.arange(0.0, t_max + dt, dt)
+    n_t = len(times)
+    n_r = len(r_centres)
+    T = np.zeros((n_t, n_r), dtype=float)
+    T[0, :] = 25.0
+
+    r_faces = np.concatenate(
+        [r_centres[:1] - 0.5 * dr, r_centres + 0.5 * dr]
+    )  # length n_r + 1
+
+    for n in range(n_t - 1):
+        old = T[n]
+        new = T[n + 1]
+
+        ghost_left = old[0] + dr * q_flux / k
+        ghost_right = old[-1]
+
+        T_ext = np.empty(n_r + 2)
+        T_ext[0] = ghost_left
+        T_ext[1:-1] = old
+        T_ext[-1] = ghost_right
+
+        for i in range(n_r):
+            r_imh = r_faces[i]
+            r_iph = r_faces[i + 1]
+            new[i] = old[i] + (alpha * dt / (r_centres[i] * dr**2)) * (
+                r_iph * (T_ext[i + 2] - old[i])
+                - r_imh * (old[i] - T_ext[i])
+            )
+
+    return times, T
