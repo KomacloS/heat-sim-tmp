@@ -1,56 +1,41 @@
-# demos/demo_m1.py
+"""Streamlit demo for Milestone 1."""
 
-import argparse
+from __future__ import annotations
 
-import matplotlib.pyplot as plt
+import streamlit as st
 
-from laserpad.geometry import build_mesh
-from laserpad.solver import solve_steady
-from laserpad.plot import plot_ring
+from laserpad.geometry import get_pad_properties
+from laserpad.solver import solve_heatup
+from laserpad.plot import plot_heatup
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="M1 Demo: Steady-state temperature on a copper pad ring."
+    st.title("M1: Lumped-Pad Heatup Demo")
+
+    d_mm = st.slider(
+        "Pad diameter (mm)", min_value=0.5, max_value=5.0, value=1.0, step=0.1
     )
-    parser.add_argument(
-        "--r-inner",
-        type=float,
-        default=0.50,
-        help="Inner pad radius (default: 0.50)",
-    )
-    parser.add_argument(
-        "--r-outer",
-        type=float,
-        default=1.50,
-        help="Outer pad radius (default: 1.50)",
-    )
-    parser.add_argument(
-        "--q-flux",
-        type=float,
-        default=1.0e6,
-        help="Heat flux at inner rim (default: 1e6)",
-    )
-    parser.add_argument(
-        "--n-r",
-        type=int,
-        default=200,
-        help="Number of radial cells in mesh (default: 200)",
+    th_mm = st.number_input("Pad thickness (mm)", value=0.035, step=0.005)
+    power_mW = st.slider("Laser power (W)", 10.0, 10000.0, 1000.0, step=10.0)
+    t_max = st.slider("Total time (s)", 0.1, 5.0, 1.0, step=0.1)
+    dt = st.slider("Time step (s)", 0.001, 0.1, 0.02, step=0.001)
+    T0 = st.number_input("Initial temperature (°C)", value=25.0, step=1.0)
+
+    props = get_pad_properties(d_mm, th_mm)
+    times, temps = solve_heatup(
+        power_mW, props["mass_kg"], props["heat_capacity_J_per_K"], t_max, dt, T0
     )
 
-    args = parser.parse_args()
-    r_inner = args.r_inner
-    r_outer = args.r_outer
-    q_flux = args.q_flux
-    n_r = args.n_r
+    fig = plot_heatup(times, temps)
+    st.pyplot(fig)
 
-    r_centres, dr = build_mesh(r_inner=r_inner, r_outer=r_outer, n_r=n_r)
-    temperature = solve_steady(
-        r_centres=r_centres, dr=dr, q_inner=q_flux, k=400.0, r_outer=r_outer
+    st.markdown(
+        f"""
+**Pad mass:** {props['mass_kg']:.4f} kg  
+**Heat capacity:** {props['heat_capacity_J_per_K']:.1f} J/K  
+**Peak ΔT:** {(temps[-1]-T0):.1f} °C
+"""
     )
-    plot_ring(r_centres=r_centres, temperature=temperature, r_inner=r_inner, r_outer=r_outer)
-
-    plt.show()
 
 
 if __name__ == "__main__":
