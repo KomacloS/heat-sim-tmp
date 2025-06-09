@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import streamlit as st
-import numpy as np
+import matplotlib.pyplot as plt
 
 from laserpad.geometry import build_radial_mesh
 from laserpad.solver import solve_transient
-from laserpad.plot import plot_transient
 
 
 def main() -> None:
@@ -25,7 +24,19 @@ def main() -> None:
     if st.button("Run simulation"):
         r_centres, dr = build_radial_mesh(r_inner_mm / 1000.0, r_outer_mm / 1000.0, n_r)
         times, T = solve_transient(r_centres, dr, q_flux, k, rho_cp, t_max, dt)
-        fig = plot_transient(r_centres, times, T)
+
+        t_idx = st.slider(
+            "Time step",
+            min_value=0,
+            max_value=len(times) - 1,
+            value=0,
+            step=1,
+        )
+        fig, ax = plt.subplots()
+        ax.plot(r_centres, T[t_idx, :])
+        ax.set_xlabel("Radius (m)")
+        ax.set_ylabel("Temperature (°C)")
+        ax.set_title(f"t = {times[t_idx]:.3f} s")
         st.pyplot(fig)
 
 
