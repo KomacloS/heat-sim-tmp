@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import streamlit as st
 import matplotlib.pyplot as plt
+import time
+from matplotlib.ticker import EngFormatter
 
 import numpy as np
 
@@ -22,7 +24,9 @@ def main() -> None:
     rho_cp = st.number_input("rho*cp (J/m^3/K)", value=8960.0 * 385.0)
     t_max_ms = st.number_input("Total time (ms)", value=100.0)
     dt_ms = st.number_input("Time step (ms)", value=1.0, format="%.6f")
-    max_iter = st.number_input("Max steps", value=1000, min_value=1, step=1)
+    max_iter = st.number_input(
+        "Max iterations per step", value=1000, min_value=1, step=1
+    )
     allow_unstable = st.checkbox("Ignore stability limit")
 
     if dt_ms < 0.1:
@@ -41,6 +45,20 @@ def main() -> None:
         )
         r_inner_m = r_inner_mm / 1000.0
         q_flux = power_W / (2.0 * np.pi * r_inner_m)
+        progress = st.progress(0)
+        status = st.empty()
+        start = time.perf_counter()
+
+        def cb(i: int, total: int) -> None:
+            frac = i / total
+            progress.progress(int(frac * 100))
+            elapsed = time.perf_counter() - start
+            est_total = elapsed / frac if frac else 0.0
+            remaining = est_total - elapsed
+            status.text(
+                f"Iteration {i}/{total} — elapsed {elapsed:.1f}s, ETA {remaining:.1f}s"
+            )
+
         times, T = solve_transient(
             r_centres,
             dr,
@@ -51,7 +69,10 @@ def main() -> None:
             dt,
             max_steps=int(max_iter),
             allow_unstable=allow_unstable,
+            progress_cb=cb,
         )
+        progress.empty()
+        status.success(f"Completed in {time.perf_counter() - start:.1f}s")
         st.session_state["m2_results"] = (r_centres, times, T)
 
     if st.session_state["m2_results"] is not None:
@@ -70,14 +91,20 @@ def main() -> None:
         ax.set_xlabel("Radius (mm)")
         ax.set_ylabel("Temperature (°C)")
         ax.set_title(f"t = {times[t_idx]:.3f} s")
+        ax.xaxis.set_major_formatter(EngFormatter(unit="mm"))
+        ax.yaxis.set_major_formatter(EngFormatter(unit="°C"))
         st.pyplot(fig)
 
         fig2, ax2 = plt.subplots()
         tt, rr = np.meshgrid(times, r_centres_mm)
         pcm = ax2.pcolormesh(tt, rr, T.T, shading="auto")
-        fig2.colorbar(pcm, ax=ax2, label="Temperature (°C)")
+        cbar = fig2.colorbar(pcm, ax=ax2, label="Temperature (°C)")
+        cbar.formatter = EngFormatter(unit="°C")
+        cbar.update_ticks()
         ax2.set_xlabel("Time (s)")
         ax2.set_ylabel("Radius (mm)")
+        ax2.xaxis.set_major_formatter(EngFormatter(unit="s"))
+        ax2.yaxis.set_major_formatter(EngFormatter(unit="mm"))
         ax2.set_title("Temperature vs. time")
         st.pyplot(fig2)
 
@@ -87,7 +114,9 @@ def main() -> None:
         fig3 = plt.figure(figsize=(4, 4))
         ax3 = fig3.add_subplot(111, projection="polar")
         pcm3 = ax3.pcolormesh(th, rr2, temp_ring.T, shading="auto")
-        fig3.colorbar(pcm3, ax=ax3, label="Temperature (°C)")
+        cbar3 = fig3.colorbar(pcm3, ax=ax3, label="Temperature (°C)")
+        cbar3.formatter = EngFormatter(unit="°C")
+        cbar3.update_ticks()
         ax3.set_title("Radial temperature")
         ax3.set_yticklabels([])
         st.pyplot(fig3)

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import streamlit as st
 import numpy as np
+import time
+from matplotlib.ticker import EngFormatter
 
 from laserpad.geometry import build_stack_mesh
 from laserpad.solver import solve_transient_2d
@@ -22,7 +24,9 @@ def main() -> None:
     power_W = st.number_input("Laser power Qin (W)", value=10.0)
     n_t = st.slider("Time steps", 10, 200, 50)
     dt_ms = st.number_input("Time step (ms)", value=0.1, format="%.6f")
-    max_iter = st.number_input("Max steps", value=1000, min_value=1, step=1)
+    max_iter = st.number_input(
+        "Max iterations per step", value=1000, min_value=1, step=1
+    )
     allow_unstable = st.checkbox("Ignore stability limit")
 
     if dt_ms < 0.01:
@@ -36,6 +40,20 @@ def main() -> None:
         )
         height = pad_th + sub_th
         q_flux = power_W / (2.0 * np.pi * r_in * height)
+        progress = st.progress(0)
+        status = st.empty()
+        start = time.perf_counter()
+
+        def cb(i: int, total: int) -> None:
+            frac = i / total
+            progress.progress(int(frac * 100))
+            elapsed = time.perf_counter() - start
+            est_total = elapsed / frac if frac else 0.0
+            remaining = est_total - elapsed
+            status.text(
+                f"Iteration {i}/{total} — elapsed {elapsed:.1f}s, ETA {remaining:.1f}s"
+            )
+
         times, T = solve_transient_2d(
             r_centres,
             dr,
@@ -47,7 +65,10 @@ def main() -> None:
             dt,
             max_steps=int(max_iter),
             allow_unstable=allow_unstable,
+            progress_cb=cb,
         )
+        progress.empty()
+        status.success(f"Completed in {time.perf_counter() - start:.1f}s")
         t_idx = st.slider("Time index", 0, len(times) - 1, 0)
         fig = plot_stack_temperature(r_centres, z_centres, T[t_idx])
         st.pyplot(fig)
