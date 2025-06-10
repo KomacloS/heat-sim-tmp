@@ -6,6 +6,8 @@ import numpy as np
 from numpy.typing import NDArray
 from typing import Callable
 
+ProgressCallback = Callable[[int, int], None]
+
 
 def solve_heatup(
     power_W: float,
@@ -14,13 +16,21 @@ def solve_heatup(
     t_max: float = 1.0,
     dt: float = 0.01,
     T0: float = 25.0,
+    *,
+    max_steps: int | None = None,
+    progress_cb: ProgressCallback | None = None,
 ) -> tuple[NDArray[np.float_], NDArray[np.float_]]:
     """Integrate dT/dt = power/(m*cp) with explicit Euler."""
     times: NDArray[np.float_] = np.arange(0.0, t_max + dt, dt)
+    if max_steps is not None:
+        times = times[: max_steps + 1]
     temps: NDArray[np.float_] = np.empty_like(times)
     temps[0] = T0
-    for i in range(len(times) - 1):
+    steps = len(times) - 1
+    for i in range(steps):
         temps[i + 1] = temps[i] + (power_W / (m_kg * cp)) * dt
+        if progress_cb is not None:
+            progress_cb(i + 1, steps)
     return times, temps
 
 
@@ -37,6 +47,7 @@ def solve_transient(
     *,
     max_steps: int | None = None,
     allow_unstable: bool = False,
+    progress_cb: ProgressCallback | None = None,
 ) -> tuple[NDArray[np.float_], NDArray[np.float_]]:
     """Explicit transient solver for 1-D cylindrical conduction.
 
@@ -102,6 +113,8 @@ def solve_transient(
                 * (r_iph * (T_ext[i + 2] - old[i]) - r_imh * (old[i] - T_ext[i]))
                 + source[i]
             )
+        if progress_cb is not None:
+            progress_cb(n + 1, steps)
 
     return times, T
 
@@ -123,6 +136,7 @@ def solve_transient_2d(
     *,
     max_steps: int | None = None,
     allow_unstable: bool = False,
+    progress_cb: ProgressCallback | None = None,
 ) -> tuple[NDArray[np.float_], NDArray[np.float_]]:
     """Explicit 2-D transient solver in r-z cylindrical coordinates.
 
@@ -216,5 +230,7 @@ def solve_transient_2d(
                     alpha[j, i] * (T_z[j + 2, i] - 2.0 * old[j, i] + T_z[j, i]) / dz**2
                 )
                 new[j, i] = old[j, i] + dt * (radial + axial + source_r[i])
+        if progress_cb is not None:
+            progress_cb(n + 1, steps)
 
     return times, T

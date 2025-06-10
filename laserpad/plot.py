@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import EngFormatter
 import numpy as np
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
@@ -17,6 +18,8 @@ def plot_heatup(times: NDArray[np.float_], temps: NDArray[np.float_]) -> Figure:
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Temperature (°C)")
     ax.set_title("Pad Temperature")
+    ax.xaxis.set_major_formatter(EngFormatter(unit="s"))
+    ax.yaxis.set_major_formatter(EngFormatter(unit="°C"))
     return fig
 
 
@@ -29,6 +32,8 @@ def plot_transient(
     (line,) = ax.plot(r_centres, T[0])
     ax.set_xlabel("Radius (m)")
     ax.set_ylabel("Temperature (°C)")
+    ax.xaxis.set_major_formatter(EngFormatter(unit="m"))
+    ax.yaxis.set_major_formatter(EngFormatter(unit="°C"))
 
     def update(frame: int) -> list[Line2D]:
         line.set_ydata(T[frame])
@@ -51,7 +56,11 @@ def plot_stack_temperature(
     fig, ax = plt.subplots()
     R, Z = np.meshgrid(r_centres * 1000.0, z_centres * 1000.0)
     pcm = ax.pcolormesh(R, Z, T_frame, shading="auto")
-    fig.colorbar(pcm, ax=ax, label="Temperature (°C)")
+    cbar = fig.colorbar(pcm, ax=ax, label="Temperature (°C)")
+    cbar.formatter = EngFormatter(unit="°C")
+    cbar.update_ticks()
     ax.set_xlabel("Radius (mm)")
     ax.set_ylabel("z (mm)")
+    ax.xaxis.set_major_formatter(EngFormatter(unit="mm"))
+    ax.yaxis.set_major_formatter(EngFormatter(unit="mm"))
     return fig
