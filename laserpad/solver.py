@@ -34,6 +34,9 @@ def solve_transient(
     dt: float,
     heat_source: Callable[[NDArray[np.float_]], NDArray[np.float_]] | None = None,
     T0: float = 25.0,
+    *,
+    max_steps: int | None = None,
+    allow_unstable: bool = False,
 ) -> tuple[NDArray[np.float_], NDArray[np.float_]]:
     """Explicit transient solver for 1-D cylindrical conduction.
 
@@ -47,17 +50,24 @@ def solve_transient(
         is converted to a volumetric source ``q''/rho_cp`` in each cell.
     T0:
         Initial temperature.
+    max_steps:
+        Optional limit on the number of time steps.
+    allow_unstable:
+        If ``True`` run even when ``dt`` violates the stability limit.
     """
 
     alpha = k / rho_cp
     dt_lim = 0.5 * dr**2 / alpha
-    if dt > dt_lim:
+    if dt > dt_lim and not allow_unstable:
         raise ValueError(
-            f"Time step {dt:g} exceeds stability limit of {dt_lim:g} seconds"
+            f"Time step {dt:.6f} exceeds stability limit of {dt_lim:.6f} seconds"
         )
 
     times = np.arange(0.0, t_max + dt, dt)
+    if max_steps is not None:
+        times = times[: max_steps + 1]
     n_t = len(times)
+    steps = n_t - 1
     n_r = len(r_centres)
     T = np.zeros((n_t, n_r), dtype=float)
     T[0, :] = T0
@@ -72,7 +82,7 @@ def solve_transient(
         [r_centres[:1] - 0.5 * dr, r_centres + 0.5 * dr]
     )  # length n_r + 1
 
-    for n in range(n_t - 1):
+    for n in range(steps):
         old = T[n]
         new = T[n + 1]
 
@@ -110,6 +120,9 @@ def solve_transient_2d(
     trace_mask: NDArray[np.bool_] | None = None,
     h_trace: float = 1e3,
     T_inf: float = 25.0,
+    *,
+    max_steps: int | None = None,
+    allow_unstable: bool = False,
 ) -> tuple[NDArray[np.float_], NDArray[np.float_]]:
     """Explicit 2-D transient solver in r-z cylindrical coordinates.
 
@@ -122,6 +135,10 @@ def solve_transient_2d(
         Heat-transfer coefficient for trace-connected sectors [W/m²·K].
     T_inf:
         Ambient temperature used for trace heat-sink boundary conditions.
+    max_steps:
+        Optional limit on the number of time steps.
+    allow_unstable:
+        If ``True`` run even when ``dt`` violates the stability limit.
     """
 
     from .geometry import load_materials
@@ -140,13 +157,16 @@ def solve_transient_2d(
 
     alpha = k / rho_cp
     dt_lim = 0.55 * min(dr**2, dz**2) / np.max(alpha)
-    if dt > dt_lim:
+    if dt > dt_lim and not allow_unstable:
         raise ValueError(
-            f"Time step {dt:g} exceeds stability limit of {dt_lim:g} seconds"
+            f"Time step {dt:.6f} exceeds stability limit of {dt_lim:.6f} seconds"
         )
 
     times = np.arange(0.0, (n_t + 1) * dt, dt)
-    T = np.full((n_t + 1, n_z, n_r), T0, dtype=float)
+    if max_steps is not None:
+        times = times[: max_steps + 1]
+    steps = len(times) - 1
+    T = np.full((steps + 1, n_z, n_r), T0, dtype=float)
 
     if heat_source is None:
         q_profile = np.zeros_like(r_centres)
@@ -161,7 +181,7 @@ def solve_transient_2d(
     else:
         frac_trace = np.zeros_like(r_centres)
 
-    for n in range(n_t):
+    for n in range(steps):
         old = T[n]
         new = T[n + 1]
 

@@ -42,3 +42,7 @@ poetry run demo-m5
 
 When the app asks for a trace configuration, upload `sample_traces.json` to see
 a simple demo.
+
+To terminate a running demo and launch another one, press `Ctrl+C` in the
+terminal where Streamlit is running. This stops the server so you can start the
+next demo without closing VS Code.

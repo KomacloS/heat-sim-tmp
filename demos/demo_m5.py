@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import streamlit as st
+import numpy as np
 
 from laserpad.geometry import load_traces, build_stack_mesh_with_traces
 from laserpad.solver import solve_transient_2d
@@ -20,7 +21,9 @@ def main() -> None:
     n_z = st.slider("Axial cells", 10, 200, 50)
     power_W = st.number_input("Laser power Qin (W)", value=10.0)
     n_t = st.slider("Time steps", 10, 200, 50)
-    dt_ms = st.number_input("Time step (ms)", value=0.1)
+    dt_ms = st.number_input("Time step (ms)", value=0.1, format="%.6f")
+    max_iter = st.number_input("Max steps", value=1000, min_value=1, step=1)
+    allow_unstable = st.checkbox("Ignore stability limit")
 
     if dt_ms < 0.01:
         st.warning("Time step is very small; simulation may be slow and not optimal.")
@@ -50,6 +53,8 @@ def main() -> None:
             trace_mask=mask,
             h_trace=h_trace,
             T_inf=T_inf,
+            max_steps=int(max_iter),
+            allow_unstable=allow_unstable,
         )
         t_idx = st.slider("Time index", 0, len(times) - 1, 0)
         fig = plot_stack_temperature(r, z, T[t_idx])
