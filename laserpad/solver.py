@@ -107,8 +107,22 @@ def solve_transient_2d(
     dt: float,
     heat_source: Callable[[NDArray[np.float_]], NDArray[np.float_]] | None = None,
     T0: float = 25.0,
+    trace_mask: NDArray[np.bool_] | None = None,
+    h_trace: float = 1e3,
+    T_inf: float = 25.0,
 ) -> tuple[NDArray[np.float_], NDArray[np.float_]]:
-    """Explicit 2-D transient solver in r-z cylindrical coordinates."""
+    """Explicit 2-D transient solver in r-z cylindrical coordinates.
+
+    Parameters
+    ----------
+    trace_mask:
+        Boolean array of shape ``(n_theta, n_r)`` describing which angular cells
+        are connected to copper traces at the outer radius.
+    h_trace:
+        Heat-transfer coefficient for trace-connected sectors [W/m²·K].
+    T_inf:
+        Ambient temperature used for trace heat-sink boundary conditions.
+    """
 
     from .geometry import load_materials
 
@@ -142,12 +156,19 @@ def solve_transient_2d(
 
     r_faces = np.concatenate([r_centres[:1] - 0.5 * dr, r_centres + 0.5 * dr])
 
+    if trace_mask is not None:
+        frac_trace = np.mean(trace_mask, axis=0)
+    else:
+        frac_trace = np.zeros_like(r_centres)
+
     for n in range(n_t):
         old = T[n]
         new = T[n + 1]
 
         ghost_r_left = old[:, 0] + dr * q_flux / k[:, 0]
-        ghost_r_right = old[:, -1]
+
+        h_eff = frac_trace[-1] * h_trace
+        ghost_r_right = old[:, -1] - dr * h_eff / k[:, -1] * (old[:, -1] - T_inf)
 
         T_r = np.empty((n_z, n_r + 2))
         T_r[:, 0] = ghost_r_left
