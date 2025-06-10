@@ -5,6 +5,8 @@ from __future__ import annotations
 import streamlit as st
 import matplotlib.pyplot as plt
 
+import numpy as np
+
 from laserpad.geometry import build_radial_mesh
 from laserpad.solver import solve_transient
 
@@ -21,9 +23,19 @@ def main() -> None:
     t_max = st.number_input("Total time (s)", value=0.1)
     dt = st.number_input("Time step (s)", value=0.001)
 
-    if st.button("Run simulation"):
-        r_centres, dr = build_radial_mesh(r_inner_mm / 1000.0, r_outer_mm / 1000.0, n_r)
+    if "m2_results" not in st.session_state:
+        st.session_state["m2_results"] = None
+
+    run = st.button("Run simulation")
+    if run:
+        r_centres, dr = build_radial_mesh(
+            r_inner_mm / 1000.0, r_outer_mm / 1000.0, n_r
+        )
         times, T = solve_transient(r_centres, dr, q_flux, k, rho_cp, t_max, dt)
+        st.session_state["m2_results"] = (r_centres, times, T)
+
+    if st.session_state["m2_results"] is not None:
+        r_centres, times, T = st.session_state["m2_results"]
 
         t_idx = st.slider(
             "Time step",
@@ -38,6 +50,15 @@ def main() -> None:
         ax.set_ylabel("Temperature (°C)")
         ax.set_title(f"t = {times[t_idx]:.3f} s")
         st.pyplot(fig)
+
+        fig2, ax2 = plt.subplots()
+        tt, rr = np.meshgrid(times, r_centres)
+        pcm = ax2.pcolormesh(tt, rr, T.T, shading="auto")
+        fig2.colorbar(pcm, ax=ax2, label="Temperature (°C)")
+        ax2.set_xlabel("Time (s)")
+        ax2.set_ylabel("Radius (m)")
+        ax2.set_title("Temperature vs. time")
+        st.pyplot(fig2)
 
 
 if __name__ == "__main__":
