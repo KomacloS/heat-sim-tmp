@@ -5,7 +5,6 @@ from __future__ import annotations
 import streamlit as st
 import numpy as np
 import time
-from matplotlib.ticker import EngFormatter
 
 from laserpad.geometry import load_traces, build_stack_mesh_with_traces
 from laserpad.solver import solve_transient_2d

@@ -12,27 +12,52 @@ from numpy.typing import NDArray
 import numpy as np
 
 
+def get_annular_pad_properties(
+    r_inner_mm: float,
+    r_outer_mm: float,
+    thickness_mm: float = 0.035,
+    density: float = 8960.0,
+    cp: float = 385.0,
+) -> dict[str, float]:
+    """Return area, volume, mass and heat capacity for an annular pad."""
+
+    r_in = r_inner_mm * 1e-3
+    r_out = r_outer_mm * 1e-3
+    t = thickness_mm * 1e-3
+
+    area = math.pi * (r_out**2 - r_in**2)
+    volume = area * t
+    mass = density * volume
+    heat_capacity = mass * cp
+
+    return {
+        "area_m2": area,
+        "volume_m3": volume,
+        "mass_kg": mass,
+        "heat_capacity_J_per_K": heat_capacity,
+    }
+
+
 def get_pad_properties(
     diameter_mm: float,
     thickness_mm: float = 0.035,
     density: float = 8960.0,
     cp: float = 385.0,
 ) -> Dict[str, float]:
-    """Return area, volume, mass and heat capacity for a circular pad."""
-    diameter_m = diameter_mm / 1000.0
-    thickness_m = thickness_mm / 1000.0
+    """Return properties for a solid circular pad.
 
-    area_m2 = math.pi * (diameter_m / 2.0) ** 2
-    volume_m3 = area_m2 * thickness_m
-    mass_kg = density * volume_m3
-    heat_capacity_J_per_K = mass_kg * cp
+    This function is retained for backward compatibility and simply calls
+    :func:`get_annular_pad_properties` with ``r_inner_mm`` set to 0.
+    """
 
-    return {
-        "area_m2": area_m2,
-        "volume_m3": volume_m3,
-        "mass_kg": mass_kg,
-        "heat_capacity_J_per_K": heat_capacity_J_per_K,
-    }
+    r_out = diameter_mm / 2.0
+    return get_annular_pad_properties(
+        0.0,
+        r_out,
+        thickness_mm,
+        density,
+        cp,
+    )
 
 
 def build_radial_mesh(
