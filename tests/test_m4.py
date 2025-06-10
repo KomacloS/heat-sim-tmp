@@ -53,9 +53,9 @@ def test_cfl_enforced() -> None:
         props["k"] / (props["rho"] * props["cp"]) for props in mats.values()
     )
     dt_bad = 0.6 * min(dr**2, dz**2) / alpha_max
-    try:
+    import warnings
+
+    with warnings.catch_warnings(record=True) as warns:
+        warnings.simplefilter("always")
         solve_transient_2d(r_centres, dr, z_centres, dz, mat_idx, 1e5, 1, dt_bad)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("Expected ValueError for unstable dt")
+    assert any(issubclass(w.category, RuntimeWarning) for w in warns)

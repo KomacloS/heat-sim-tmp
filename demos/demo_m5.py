@@ -18,9 +18,14 @@ def main() -> None:
     pad_th = st.number_input("Pad thickness (mm)", value=0.035) / 1000.0
     sub_th = st.number_input("Substrate thickness (mm)", value=0.2) / 1000.0
     n_z = st.slider("Axial cells", 10, 200, 50)
-    q_flux = st.number_input("Inner heat flux (W/m²)", value=1e6)
+    power_W = st.number_input("Laser power Qin (W)", value=10.0)
     n_t = st.slider("Time steps", 10, 200, 50)
-    dt = st.number_input("Time step (s)", value=1e-4)
+    dt_ms = st.number_input("Time step (ms)", value=0.1)
+
+    if dt_ms < 0.01:
+        st.warning("Time step is very small; simulation may be slow and not optimal.")
+
+    dt = dt_ms / 1000.0
 
     trace_file = st.file_uploader("Trace JSON config", type="json")
     h_trace = st.number_input("Trace h (W/m²·K)", value=1e3)
@@ -31,19 +36,27 @@ def main() -> None:
         r, dr, z, dz, mat_idx, mask = build_stack_mesh_with_traces(
             r_in, r_out, n_r, pad_th, sub_th, n_z, traces
         )
-        times, T = solve_transient_2d(
-            r,
-            dr,
-            z,
-            dz,
-            mat_idx,
-            q_flux,
-            n_t,
-            dt,
-            trace_mask=mask,
-            h_trace=h_trace,
-            T_inf=T_inf,
-        )
+        height = pad_th + sub_th
+        q_flux = power_W / (2.0 * np.pi * r_in * height)
+        import warnings
+
+        with warnings.catch_warnings(record=True) as warns:
+            warnings.simplefilter("always")
+            times, T = solve_transient_2d(
+                r,
+                dr,
+                z,
+                dz,
+                mat_idx,
+                q_flux,
+                n_t,
+                dt,
+                trace_mask=mask,
+                h_trace=h_trace,
+                T_inf=T_inf,
+            )
+        for w in warns:
+            st.warning(str(w.message))
         t_idx = st.slider("Time index", 0, len(times) - 1, 0)
         fig = plot_stack_temperature(r, z, T[t_idx])
         st.pyplot(fig)

@@ -38,9 +38,9 @@ def test_cfl_violation() -> None:
     rho_cp = 2.0e6
     alpha = k / rho_cp
     dt_bad = 0.6 * dr**2 / alpha  # violates 0.5 dr^2/alpha
-    try:
+    import warnings
+
+    with warnings.catch_warnings(record=True) as warns:
+        warnings.simplefilter("always")
         solve_transient(r_centres, dr, q, k, rho_cp, 0.01, dt_bad)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("Expected ValueError for unstable dt")
+    assert any(issubclass(w.category, RuntimeWarning) for w in warns)

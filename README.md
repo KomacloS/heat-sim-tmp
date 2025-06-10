@@ -42,3 +42,10 @@ poetry run demo-m5
 
 When the app asks for a trace configuration, upload `sample_traces.json` to see
 a simple demo.
+
+## Stopping a Demo
+
+Each Streamlit demo runs until you interrupt it. To close the
+current app in VS Code, focus the integrated terminal that launched
+`streamlit` and press `Ctrl+C`. This stops the server so you can run
+another demo without quitting the editor.
