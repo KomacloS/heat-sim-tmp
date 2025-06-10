@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import math
-from typing import Dict
+from typing import Dict, cast
+from pathlib import Path
+import yaml  # type: ignore
 from numpy.typing import NDArray
 
 import numpy as np
@@ -44,3 +46,32 @@ def build_radial_mesh(
     dr = (r_outer_m - r_inner_m) / n_r
     r_centres = r_inner_m + (np.arange(n_r) + 0.5) * dr
     return r_centres, dr
+
+
+def load_materials(path: str = "materials.yaml") -> Dict[str, Dict[str, float]]:
+    """Return material properties dictionary from a YAML file."""
+    data = yaml.safe_load(Path(path).read_text())
+    return cast(Dict[str, Dict[str, float]], data)
+
+
+def build_stack_mesh(
+    r_inner: float,
+    r_outer: float,
+    n_r: int,
+    pad_th: float,
+    sub_th: float,
+    n_z: int,
+) -> tuple[NDArray[np.float_], float, NDArray[np.float_], float, NDArray[np.str_]]:
+    """Return 2-D r-z mesh centres and material index grid."""
+
+    dr = (r_outer - r_inner) / n_r
+    dz = (pad_th + sub_th) / n_z
+
+    r_centres = r_inner + (np.arange(n_r) + 0.5) * dr
+    z_centres = (np.arange(n_z) + 0.5) * dz
+
+    mat_idx = np.full((n_z, n_r), "fr4", dtype=object)
+    pad_cells = z_centres < pad_th
+    mat_idx[pad_cells, :] = "copper"
+
+    return r_centres, dr, z_centres, dz, mat_idx

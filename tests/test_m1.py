@@ -28,6 +28,6 @@ def test_energy_balance() -> None:
     times, temps = solve_heatup(P, m, cp, 0.1, 0.02, T0)
     t_max = times[-1]
     expected = T0 + P * t_max / (m * cp)
-    assert abs(temps[-1] - expected) < 0.01 * abs(expected), (
-        f"Energy mismatch: got {temps[-1]:.3f}, expected ~{expected:.3f}"
-    )
+    assert abs(temps[-1] - expected) < 0.01 * abs(
+        expected
+    ), f"Energy mismatch: got {temps[-1]:.3f}, expected ~{expected:.3f}"

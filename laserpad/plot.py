@@ -39,3 +39,19 @@ def plot_transient(
 
     FuncAnimation(fig, update, frames=len(times), interval=100)
     return fig, ax
+
+
+def plot_stack_temperature(
+    r_centres: NDArray[np.float_],
+    z_centres: NDArray[np.float_],
+    T_frame: NDArray[np.float_],
+) -> Figure:
+    """Return a 2-D temperature colormap for an r-z slice."""
+
+    fig, ax = plt.subplots()
+    R, Z = np.meshgrid(r_centres, z_centres)
+    pcm = ax.pcolormesh(R, Z, T_frame, shading="auto")
+    fig.colorbar(pcm, ax=ax, label="Temperature (°C)")
+    ax.set_xlabel("Radius (m)")
+    ax.set_ylabel("z (m)")
+    return fig

@@ -5,11 +5,11 @@ from __future__ import annotations
 import streamlit as st
 import numpy as np
 from numpy.typing import NDArray
+import matplotlib.pyplot as plt
 
 from laserpad.geometry import build_radial_mesh
 from laserpad.solver import solve_transient
 from laserpad.beam_profiles import uniform_beam, gaussian_beam, donut_beam
-from laserpad.plot import plot_transient
 
 
 def main() -> None:
@@ -53,8 +53,11 @@ def main() -> None:
         times, T = solve_transient(r_centres, dr, 0.0, k, rho_cp, t_max, dt, src)
 
         t_idx = st.slider("Time index", 0, len(times) - 1, 0)
-        fig, ax = plot_transient(r_centres, times, T)
-        ax.set_title(f"Beam: {beam_type}, t={times[t_idx]:.3f}s")
+        fig, ax = plt.subplots()
+        ax.plot(r_centres, T[t_idx, :])
+        ax.set_xlabel("Radius (m)")
+        ax.set_ylabel("Temperature (°C)")
+        ax.set_title(f"Beam: {beam_type}, t = {times[t_idx]:.3f} s")
         st.pyplot(fig)
 
 
