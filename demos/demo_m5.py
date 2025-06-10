@@ -38,19 +38,25 @@ def main() -> None:
         )
         height = pad_th + sub_th
         q_flux = power_W / (2.0 * np.pi * r_in * height)
-        times, T = solve_transient_2d(
-            r,
-            dr,
-            z,
-            dz,
-            mat_idx,
-            q_flux,
-            n_t,
-            dt,
-            trace_mask=mask,
-            h_trace=h_trace,
-            T_inf=T_inf,
-        )
+        import warnings
+
+        with warnings.catch_warnings(record=True) as warns:
+            warnings.simplefilter("always")
+            times, T = solve_transient_2d(
+                r,
+                dr,
+                z,
+                dz,
+                mat_idx,
+                q_flux,
+                n_t,
+                dt,
+                trace_mask=mask,
+                h_trace=h_trace,
+                T_inf=T_inf,
+            )
+        for w in warns:
+            st.warning(str(w.message))
         t_idx = st.slider("Time index", 0, len(times) - 1, 0)
         fig = plot_stack_temperature(r, z, T[t_idx])
         st.pyplot(fig)

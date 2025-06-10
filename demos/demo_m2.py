@@ -22,6 +22,9 @@ def main() -> None:
     rho_cp = st.number_input("rho*cp (J/m^3/K)", value=8960.0 * 385.0)
     t_max_ms = st.number_input("Total time (ms)", value=100.0)
     dt_ms = st.number_input("Time step (ms)", value=1.0)
+    max_iter = int(
+        st.number_input("Maximum iterations", value=1000, min_value=1, step=100)
+    )
 
     if dt_ms < 0.1:
         st.warning("Time step is very small; simulation may be slow and not optimal.")
@@ -39,7 +42,28 @@ def main() -> None:
         )
         r_inner_m = r_inner_mm / 1000.0
         q_flux = power_W / (2.0 * np.pi * r_inner_m)
-        times, T = solve_transient(r_centres, dr, q_flux, k, rho_cp, t_max, dt)
+        alpha = k / rho_cp
+        dt_lim = 0.5 * dr**2 / alpha
+        if dt > dt_lim:
+            st.warning(
+                f"Time step {dt:.6f} s exceeds stability limit {dt_lim:.6f} s"
+            )
+        import warnings
+
+        with warnings.catch_warnings(record=True) as warns:
+            warnings.simplefilter("always")
+            times, T = solve_transient(
+                r_centres,
+                dr,
+                q_flux,
+                k,
+                rho_cp,
+                t_max,
+                dt,
+                max_steps=max_iter,
+            )
+        for w in warns:
+            st.warning(str(w.message))
         st.session_state["m2_results"] = (r_centres, times, T)
 
     if st.session_state["m2_results"] is not None:
@@ -57,7 +81,7 @@ def main() -> None:
         ax.plot(r_centres_mm, T[t_idx, :])
         ax.set_xlabel("Radius (mm)")
         ax.set_ylabel("Temperature (°C)")
-        ax.set_title(f"t = {times[t_idx]:.3f} s")
+        ax.set_title(f"t = {times[t_idx]:.6f} s")
         st.pyplot(fig)
 
         fig2, ax2 = plt.subplots()

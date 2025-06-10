@@ -34,6 +34,7 @@ def solve_transient(
     dt: float,
     heat_source: Callable[[NDArray[np.float_]], NDArray[np.float_]] | None = None,
     T0: float = 25.0,
+    max_steps: int | None = None,
 ) -> tuple[NDArray[np.float_], NDArray[np.float_]]:
     """Explicit transient solver for 1-D cylindrical conduction.
 
@@ -47,16 +48,26 @@ def solve_transient(
         is converted to a volumetric source ``q''/rho_cp`` in each cell.
     T0:
         Initial temperature.
+    max_steps:
+        Optional cap on the number of explicit time steps. If ``None`` the
+        solver integrates until ``t_max``. When exceeded, integration stops and
+        results up to ``max_steps`` are returned.
     """
 
     alpha = k / rho_cp
+    import warnings
+
     dt_lim = 0.5 * dr**2 / alpha
     if dt > dt_lim:
-        raise ValueError(
-            f"Time step {dt:g} exceeds stability limit of {dt_lim:g} seconds"
+        warnings.warn(
+            f"Time step {dt:g} exceeds stability limit of {dt_lim:g} seconds",
+            RuntimeWarning,
         )
 
-    times = np.arange(0.0, t_max + dt, dt)
+    n_steps = int(np.ceil(t_max / dt))
+    if max_steps is not None and n_steps > max_steps:
+        n_steps = max_steps
+    times = np.arange(0.0, (n_steps + 1) * dt, dt)
     n_t = len(times)
     n_r = len(r_centres)
     T = np.zeros((n_t, n_r), dtype=float)
@@ -139,10 +150,13 @@ def solve_transient_2d(
         rho_cp[mask] = props["rho"] * props["cp"]
 
     alpha = k / rho_cp
+    import warnings
+
     dt_lim = 0.55 * min(dr**2, dz**2) / np.max(alpha)
     if dt > dt_lim:
-        raise ValueError(
-            f"Time step {dt:g} exceeds stability limit of {dt_lim:g} seconds"
+        warnings.warn(
+            f"Time step {dt:g} exceeds stability limit of {dt_lim:g} seconds",
+            RuntimeWarning,
         )
 
     times = np.arange(0.0, (n_t + 1) * dt, dt)
