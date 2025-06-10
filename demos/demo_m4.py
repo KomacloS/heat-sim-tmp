@@ -53,19 +53,24 @@ def main() -> None:
                 f"Iteration {i}/{total} — elapsed {elapsed:.1f}s, ETA {remaining:.1f}s"
             )
 
-        times, T = solve_transient_2d(
-            r_centres,
-            dr,
-            z_centres,
-            dz,
-            mat_idx,
-            q_flux,
-            n_t,
-            dt,
-            max_steps=int(max_iter),
-            allow_unstable=allow_unstable,
-            progress_cb=cb,
-        )
+        try:
+            times, T = solve_transient_2d(
+                r_centres,
+                dr,
+                z_centres,
+                dz,
+                mat_idx,
+                q_flux,
+                n_t,
+                dt,
+                max_steps=int(max_iter),
+                allow_unstable=allow_unstable,
+                progress_cb=cb,
+            )
+        except ValueError as exc:
+            progress.empty()
+            status.error(str(exc))
+            return
         progress.empty()
         status.success(f"Completed in {time.perf_counter() - start:.1f}s")
         t_idx = st.slider("Time index", 0, len(times) - 1, 0)

@@ -28,6 +28,11 @@ poetry run streamlit run demos/demo_m4.py
 poetry run streamlit run demos/demo_m5.py
 ```
 
+These demos use an explicit time-marching scheme with a stability
+limit on the time step. If you see an error like
+"Time step ... exceeds stability limit ...", reduce the chosen step
+size or enable the **Ignore stability limit** checkbox in the UI.
+
 Run the test suite with:
 
 ```bash

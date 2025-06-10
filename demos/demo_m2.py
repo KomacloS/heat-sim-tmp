@@ -40,9 +40,7 @@ def main() -> None:
 
     run = st.button("Run simulation")
     if run:
-        r_centres, dr = build_radial_mesh(
-            r_inner_mm / 1000.0, r_outer_mm / 1000.0, n_r
-        )
+        r_centres, dr = build_radial_mesh(r_inner_mm / 1000.0, r_outer_mm / 1000.0, n_r)
         r_inner_m = r_inner_mm / 1000.0
         q_flux = power_W / (2.0 * np.pi * r_inner_m)
         progress = st.progress(0)
@@ -59,18 +57,23 @@ def main() -> None:
                 f"Iteration {i}/{total} — elapsed {elapsed:.1f}s, ETA {remaining:.1f}s"
             )
 
-        times, T = solve_transient(
-            r_centres,
-            dr,
-            q_flux,
-            k,
-            rho_cp,
-            t_max,
-            dt,
-            max_steps=int(max_iter),
-            allow_unstable=allow_unstable,
-            progress_cb=cb,
-        )
+        try:
+            times, T = solve_transient(
+                r_centres,
+                dr,
+                q_flux,
+                k,
+                rho_cp,
+                t_max,
+                dt,
+                max_steps=int(max_iter),
+                allow_unstable=allow_unstable,
+                progress_cb=cb,
+            )
+        except ValueError as exc:
+            progress.empty()
+            status.error(str(exc))
+            return
         progress.empty()
         status.success(f"Completed in {time.perf_counter() - start:.1f}s")
         st.session_state["m2_results"] = (r_centres, times, T)
