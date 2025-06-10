@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import math
-from typing import Dict, cast
+from typing import Dict, cast, List, Tuple
+import json
 from pathlib import Path
 import yaml  # type: ignore
 from numpy.typing import NDArray
@@ -75,3 +76,52 @@ def build_stack_mesh(
     mat_idx[pad_cells, :] = "copper"
 
     return r_centres, dr, z_centres, dz, mat_idx
+
+
+def load_traces(path: str | bytes | object) -> List[Tuple[float, float]]:
+    """Load a JSON file describing radial copper trace angles."""
+    if hasattr(path, "read"):
+        text = path.read()
+        if isinstance(text, bytes):
+            text = text.decode()
+    else:
+        text = Path(str(path)).read_text()
+    data = json.loads(text)
+    return [(d["start_angle"], d["end_angle"]) for d in data]
+
+
+def build_stack_mesh_with_traces(
+    r_inner: float,
+    r_outer: float,
+    n_r: int,
+    pad_th: float,
+    sub_th: float,
+    n_z: int,
+    trace_defs: List[Tuple[float, float]],
+    n_theta: int = 360,
+) -> tuple[
+    NDArray[np.float_],
+    float,
+    NDArray[np.float_],
+    float,
+    NDArray[np.str_],
+    NDArray[np.bool_],
+]:
+    """Return mesh plus boolean trace mask for each angular cell."""
+
+    r_centres, dr, z_centres, dz, mat_idx = build_stack_mesh(
+        r_inner, r_outer, n_r, pad_th, sub_th, n_z
+    )
+
+    theta_centres = np.linspace(0.0, 360.0, n_theta, endpoint=False)
+    trace_mask = np.zeros((n_theta, n_r), dtype=bool)
+
+    for k, theta in enumerate(theta_centres):
+        for start, end in trace_defs:
+            if start <= theta < end or (
+                end < start and (theta >= start or theta < end)
+            ):
+                trace_mask[k, :] = True
+                break
+
+    return r_centres, dr, z_centres, dz, mat_idx, trace_mask

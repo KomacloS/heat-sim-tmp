@@ -26,6 +26,7 @@ demo-m1 = "demos.demo_m1:main"
 demo-m2 = "demos.demo_m2:main"
 demo-m3 = "demos.demo_m3:main"
 demo-m4 = "demos.demo_m4:main"
+demo-m5 = "demos.demo_m5:main"
 
 [tool.mypy]
 python_version = "3.11"
