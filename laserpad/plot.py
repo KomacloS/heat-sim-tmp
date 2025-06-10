@@ -49,9 +49,9 @@ def plot_stack_temperature(
     """Return a 2-D temperature colormap for an r-z slice."""
 
     fig, ax = plt.subplots()
-    R, Z = np.meshgrid(r_centres, z_centres)
+    R, Z = np.meshgrid(r_centres * 1000.0, z_centres * 1000.0)
     pcm = ax.pcolormesh(R, Z, T_frame, shading="auto")
     fig.colorbar(pcm, ax=ax, label="Temperature (°C)")
-    ax.set_xlabel("Radius (m)")
-    ax.set_ylabel("z (m)")
+    ax.set_xlabel("Radius (mm)")
+    ax.set_ylabel("z (mm)")
     return fig
