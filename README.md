@@ -33,3 +33,12 @@ Run the test suite with:
 ```bash
 poetry run pytest -q
 ```
+
+For the trace-aware multilayer model (Milestone 5):
+
+```bash
+poetry run demo-m5
+```
+
+When the app asks for a trace configuration, upload `sample_traces.json` to see
+a simple demo.
