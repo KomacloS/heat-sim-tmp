@@ -21,7 +21,9 @@ def main() -> None:
     k = st.number_input("Thermal conductivity k (W/m/K)", value=401.0)
     rho_cp = st.number_input("rho*cp (J/m^3/K)", value=8960.0 * 385.0)
     t_max_ms = st.number_input("Total time (ms)", value=100.0)
-    dt_ms = st.number_input("Time step (ms)", value=1.0)
+    dt_ms = st.number_input("Time step (ms)", value=1.0, format="%.6f")
+    max_iter = st.number_input("Max steps", value=1000, min_value=1, step=1)
+    allow_unstable = st.checkbox("Ignore stability limit")
 
     if dt_ms < 0.1:
         st.warning("Time step is very small; simulation may be slow and not optimal.")
@@ -39,7 +41,17 @@ def main() -> None:
         )
         r_inner_m = r_inner_mm / 1000.0
         q_flux = power_W / (2.0 * np.pi * r_inner_m)
-        times, T = solve_transient(r_centres, dr, q_flux, k, rho_cp, t_max, dt)
+        times, T = solve_transient(
+            r_centres,
+            dr,
+            q_flux,
+            k,
+            rho_cp,
+            t_max,
+            dt,
+            max_steps=int(max_iter),
+            allow_unstable=allow_unstable,
+        )
         st.session_state["m2_results"] = (r_centres, times, T)
 
     if st.session_state["m2_results"] is not None:

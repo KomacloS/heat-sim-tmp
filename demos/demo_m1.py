@@ -18,7 +18,7 @@ def main() -> None:
     th_mm = st.number_input("Pad thickness (mm)", value=0.035, step=0.005)
     power_mW = st.slider("Laser power (W)", 10.0, 10000.0, 1000.0, step=10.0)
     t_max = st.slider("Total time (s)", 0.1, 5.0, 1.0, step=0.1)
-    dt = st.slider("Time step (s)", 0.001, 0.1, 0.02, step=0.001)
+    dt = st.slider("Time step (s)", 0.001, 0.1, 0.02, step=0.001, format="%.6f")
     T0 = st.number_input("Initial temperature (°C)", value=25.0, step=1.0)
 
     props = get_pad_properties(d_mm, th_mm)

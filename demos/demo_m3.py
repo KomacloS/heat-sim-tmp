@@ -30,7 +30,9 @@ def main() -> None:
     k = st.number_input("k (W/m·K)", value=400.0)
     rho_cp = st.number_input("ρ·cₚ (J/m³·K)", value=8.96e6)
     t_max_ms = st.number_input("Total time (ms)", value=100.0)
-    dt_ms = st.number_input("Time step (ms)", value=0.1)
+    dt_ms = st.number_input("Time step (ms)", value=0.1, format="%.6f")
+    max_iter = st.number_input("Max steps", value=1000, min_value=1, step=1)
+    allow_unstable = st.checkbox("Ignore stability limit")
 
     if dt_ms < 0.01:
         st.warning("Time step is very small; simulation may be slow and not optimal.")
@@ -38,7 +40,11 @@ def main() -> None:
     t_max = t_max_ms / 1000.0
     dt = dt_ms / 1000.0
 
-    if st.button("Run"):
+    if "m3_results" not in st.session_state:
+        st.session_state["m3_results"] = None
+
+    run = st.button("Run")
+    if run:
         r_centres, dr = build_radial_mesh(r_in, r_out, n_r)
 
         if beam_type == "Uniform":
@@ -56,27 +62,60 @@ def main() -> None:
             def src(r: NDArray[np.float_]) -> NDArray[np.float_]:
                 return donut_beam(r, r1, r2, q0)
 
-        times, T = solve_transient(r_centres, dr, 0.0, k, rho_cp, t_max, dt, src)
+        times, T = solve_transient(
+            r_centres,
+            dr,
+            0.0,
+            k,
+            rho_cp,
+            t_max,
+            dt,
+            src,
+            max_steps=int(max_iter),
+            allow_unstable=allow_unstable,
+        )
+        st.session_state["m3_results"] = (r_centres, times, T, beam_type)
 
-        t_idx = st.slider("Time index", 0, len(times) - 1, 0)
+    if st.session_state["m3_results"] is not None:
+        r_centres, times, T, beam_type = st.session_state["m3_results"]
+
         r_centres_mm = r_centres * 1000.0
+        time_ms = st.slider(
+            "Time (ms)",
+            min_value=0.0,
+            max_value=float(times[-1] * 1000),
+            value=0.0,
+            step=dt_ms,
+            format="%.3f",
+        )
+        t_idx = min(int(round(time_ms / dt_ms)), len(times) - 1)
+
         fig, ax = plt.subplots()
         ax.plot(r_centres_mm, T[t_idx, :])
         ax.set_xlabel("Radius (mm)")
         ax.set_ylabel("Temperature (°C)")
-        ax.set_title(f"Beam: {beam_type}, t = {times[t_idx]:.3f} s")
+        ax.set_title(f"Beam: {beam_type}, t = {times[t_idx]*1000:.1f} ms")
         st.pyplot(fig)
 
-        theta = np.linspace(0.0, 2 * np.pi, 200)
-        th, rr = np.meshgrid(theta, r_centres_mm)
-        temp_ring = np.tile(T[t_idx, :], (len(theta), 1))
-        fig2 = plt.figure(figsize=(4, 4))
-        ax2 = fig2.add_subplot(111, projection="polar")
-        pcm = ax2.pcolormesh(th, rr, temp_ring.T, shading="auto")
+        fig2, ax2 = plt.subplots()
+        tt, rr = np.meshgrid(times * 1000.0, r_centres_mm)
+        pcm = ax2.pcolormesh(tt, rr, T.T, shading="auto")
         fig2.colorbar(pcm, ax=ax2, label="Temperature (°C)")
-        ax2.set_title("Radial temperature")
-        ax2.set_yticklabels([])
+        ax2.set_xlabel("Time (ms)")
+        ax2.set_ylabel("Radius (mm)")
+        ax2.set_title("Temperature vs. time")
         st.pyplot(fig2)
+
+        theta = np.linspace(0.0, 2 * np.pi, 200)
+        th, rr2 = np.meshgrid(theta, r_centres_mm)
+        temp_ring = np.tile(T[t_idx, :], (len(theta), 1))
+        fig3 = plt.figure(figsize=(4, 4))
+        ax3 = fig3.add_subplot(111, projection="polar")
+        pcm2 = ax3.pcolormesh(th, rr2, temp_ring.T, shading="auto")
+        fig3.colorbar(pcm2, ax=ax3, label="Temperature (°C)")
+        ax3.set_title("Radial temperature")
+        ax3.set_yticklabels([])
+        st.pyplot(fig3)
 
 
 if __name__ == "__main__":
