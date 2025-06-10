@@ -29,8 +29,14 @@ def main() -> None:
 
     k = st.number_input("k (W/m·K)", value=400.0)
     rho_cp = st.number_input("ρ·cₚ (J/m³·K)", value=8.96e6)
-    t_max = st.number_input("Total time (s)", value=0.1)
-    dt = st.number_input("Time step (s)", value=1e-4)
+    t_max_ms = st.number_input("Total time (ms)", value=100.0)
+    dt_ms = st.number_input("Time step (ms)", value=0.1)
+
+    if dt_ms < 0.01:
+        st.warning("Time step is very small; simulation may be slow and not optimal.")
+
+    t_max = t_max_ms / 1000.0
+    dt = dt_ms / 1000.0
 
     if st.button("Run"):
         r_centres, dr = build_radial_mesh(r_in, r_out, n_r)
@@ -53,12 +59,24 @@ def main() -> None:
         times, T = solve_transient(r_centres, dr, 0.0, k, rho_cp, t_max, dt, src)
 
         t_idx = st.slider("Time index", 0, len(times) - 1, 0)
+        r_centres_mm = r_centres * 1000.0
         fig, ax = plt.subplots()
-        ax.plot(r_centres, T[t_idx, :])
-        ax.set_xlabel("Radius (m)")
+        ax.plot(r_centres_mm, T[t_idx, :])
+        ax.set_xlabel("Radius (mm)")
         ax.set_ylabel("Temperature (°C)")
         ax.set_title(f"Beam: {beam_type}, t = {times[t_idx]:.3f} s")
         st.pyplot(fig)
+
+        theta = np.linspace(0.0, 2 * np.pi, 200)
+        th, rr = np.meshgrid(theta, r_centres_mm)
+        temp_ring = np.tile(T[t_idx, :], (len(theta), 1))
+        fig2 = plt.figure(figsize=(4, 4))
+        ax2 = fig2.add_subplot(111, projection="polar")
+        pcm = ax2.pcolormesh(th, rr, temp_ring.T, shading="auto")
+        fig2.colorbar(pcm, ax=ax2, label="Temperature (°C)")
+        ax2.set_title("Radial temperature")
+        ax2.set_yticklabels([])
+        st.pyplot(fig2)
 
 
 if __name__ == "__main__":
