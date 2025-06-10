@@ -11,6 +11,8 @@ packages = [{ include = "laserpad" }]
 python     = "^3.11"
 numpy      = "^1.26"
 matplotlib = "^3.9"
+streamlit  = "^1.35"
+PyYAML    = "^6.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2"
@@ -23,6 +25,7 @@ mypy   = "^1.10"
 demo-m1 = "demos.demo_m1:main"
 demo-m2 = "demos.demo_m2:main"
 demo-m3 = "demos.demo_m3:main"
+demo-m4 = "demos.demo_m4:main"
 
 [tool.mypy]
 python_version = "3.11"
