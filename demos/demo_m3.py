@@ -80,19 +80,24 @@ def main() -> None:
                 f"Iteration {i}/{total} — elapsed {elapsed:.1f}s, ETA {remaining:.1f}s"
             )
 
-        times, T = solve_transient(
-            r_centres,
-            dr,
-            0.0,
-            k,
-            rho_cp,
-            t_max,
-            dt,
-            src,
-            max_steps=int(max_iter),
-            allow_unstable=allow_unstable,
-            progress_cb=cb,
-        )
+        try:
+            times, T = solve_transient(
+                r_centres,
+                dr,
+                0.0,
+                k,
+                rho_cp,
+                t_max,
+                dt,
+                src,
+                max_steps=int(max_iter),
+                allow_unstable=allow_unstable,
+                progress_cb=cb,
+            )
+        except ValueError as exc:
+            progress.empty()
+            status.error(str(exc))
+            return
         progress.empty()
         status.success(f"Completed in {time.perf_counter() - start:.1f}s")
         st.session_state["m3_results"] = (r_centres, times, T, beam_type)
